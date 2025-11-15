@@ -1,7 +1,8 @@
 export type FixedFields = {
   age_range: string | null;
-  region: string | null;
+  location: string | null;
   income_bracket: string | null;
+  yoe?: number | null;
 };
 
 export type RequiredFixed = {

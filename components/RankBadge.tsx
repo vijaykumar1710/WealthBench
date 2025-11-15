@@ -1,8 +1,17 @@
 interface RankBadgeProps {
-  percentile: number; // 0-100
+  percentile: number | null | undefined; // 0-100
 }
 
 export default function RankBadge({ percentile }: RankBadgeProps) {
+  // If percentile is not a valid number, display "N/A"
+  if (percentile === null || percentile === undefined || isNaN(percentile)) {
+    return (
+      <span className="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700">
+        N/A
+      </span>
+    );
+  }
+
   const getBadgeClass = () => {
     if (percentile >= 75) {
       return "bg-emerald-100 text-emerald-700";
@@ -29,4 +38,3 @@ export default function RankBadge({ percentile }: RankBadgeProps) {
     </span>
   );
 }
-

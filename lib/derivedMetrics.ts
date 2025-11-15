@@ -1,5 +1,12 @@
 import { DynamicField, RequiredFixed, OptionalAggregates, OptionalBreakdown } from "@/types/submission";
 
+// Helper function to safely convert to number
+const toNumber = (value: any, defaultValue = 0): number => {
+  if (value === null || value === undefined) return defaultValue;
+  const num = Number(value);
+  return isNaN(num) ? defaultValue : num;
+};
+
 export function calculateDerivedMetrics(
   requiredFixed: RequiredFixed,
   optionalAggregates?: OptionalAggregates,
@@ -11,10 +18,10 @@ export function calculateDerivedMetrics(
   // Helper to find value from dynamic fields
   const findDynamic = (key: string) => dynamic.find((d) => d.key === key)?.value;
   
-  const income = requiredFixed.income;
-  const savings = requiredFixed.savings;
-  const expenses = requiredFixed.expenses;
-  const debt = findDynamic("debt"); // debt is typically dynamic
+  const income = toNumber(requiredFixed.income);
+  const savings = toNumber(requiredFixed.savings);
+  const expenses = toNumber(requiredFixed.expenses);
+  const debt = toNumber(findDynamic("debt"));
 
   // Calculate totals - use aggregate if provided, otherwise sum breakdown
   const stockTotal = optionalAggregates?.stock_value_total ?? 
@@ -85,20 +92,57 @@ export function calculateDerivedMetrics(
     result.push({ key: "real_estate_total", value: realEstateTotal });
   }
 
-  // Net worth calculation
-  // Assets: savings + investment_value + real_estate_total + cars
-  // Liabilities: debt + emis_total (monthly EMIs converted to annual for comparison)
-  const assets = [savings ?? 0, investmentValue, realEstateTotal, carTotal]
-    .filter((v) => typeof v === "number" && v > 0)
-    .reduce((a, b) => (a ?? 0) + (b ?? 0), 0);
+  // Calculate net worth components
+  const assets = {
+    savings: toNumber(savings),
+    investments: toNumber(investmentValue),
+    realEstate: toNumber(realEstateTotal),
+    vehicles: toNumber(carTotal),
+    // Add more asset categories as needed
+  };
 
-  // For EMIs, we'll use monthly amount * 12 as annual liability estimate
-  const annualEmis = emiTotal * 12;
-  const liabilities = (debt ?? 0) + annualEmis;
+  const liabilities = {
+    debt: toNumber(debt),
+    emis: toNumber(emiTotal) * 12, // Convert monthly EMIs to annual
+    // Add more liability categories as needed
+  };
+
+  // Calculate totals
+  const totalAssets = Object.values(assets).reduce((sum, val) => sum + val, 0);
+  const totalLiabilities = Object.values(liabilities).reduce((sum, val) => sum + val, 0);
+  const netWorth = totalAssets - totalLiabilities;
+
+  // Add all metrics to results
+  result.push({ key: "net_worth", value: Math.round(netWorth * 100) / 100 });
   
-  if (assets > 0 || liabilities > 0) {
-    result.push({ key: "net_worth", value: assets - liabilities });
-  }
+  // Add individual components
+  Object.entries(assets).forEach(([key, value]) => {
+    if (value > 0) {
+      result.push({ 
+        key: `asset_${key}`, 
+        value: Math.round(value * 100) / 100 
+      });
+    }
+  });
+
+  Object.entries(liabilities).forEach(([key, value]) => {
+    if (value > 0) {
+      result.push({ 
+        key: `liability_${key}`, 
+        value: Math.round(value * 100) / 100 
+      });
+    }
+  });
+
+  // Add totals
+  result.push({ 
+    key: "total_assets", 
+    value: Math.round(totalAssets * 100) / 100 
+  });
+  result.push({ 
+    key: "total_liabilities", 
+    value: Math.round(totalLiabilities * 100) / 100 
+  });
 
   return result;
 }

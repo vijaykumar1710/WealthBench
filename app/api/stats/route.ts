@@ -7,14 +7,14 @@ export async function GET(request: NextRequest) {
     logger.info("GET /api/stats - Incoming request");
     const searchParams = request.nextUrl.searchParams;
     const ageRange = searchParams.get("age_range");
-    const region = searchParams.get("region");
+    const location = searchParams.get("location"); // Changed from region to location
     const incomeBracket = searchParams.get("income_bracket");
     const metric = searchParams.get("metric");
     const value = searchParams.get("value");
 
     // If ranking is requested
     if (metric && value) {
-      return await calculateRanking(metric, parseFloat(value), region || undefined, incomeBracket || undefined);
+      return await calculateRanking(metric, parseFloat(value), location || undefined, incomeBracket || undefined);
     }
 
     // Build filter conditions for submissions
@@ -25,8 +25,8 @@ export async function GET(request: NextRequest) {
     if (ageRange) {
       submissionsQuery = submissionsQuery.eq("age_range", ageRange);
     }
-    if (region) {
-      submissionsQuery = submissionsQuery.eq("region", region);
+    if (location) {
+      submissionsQuery = submissionsQuery.eq("location", location); // Changed from region to location
     }
     if (incomeBracket) {
       submissionsQuery = submissionsQuery.eq("income_bracket", incomeBracket);
@@ -143,19 +143,19 @@ export async function GET(request: NextRequest) {
 async function calculateRanking(
   metric: string,
   value: number,
-  region?: string,
+  location?: string,
   incomeBracket?: string
 ) {
   try {
     // Get all submissions for global ranking
     const { data: allSubmissions } = await supabaseServer
       .from("submissions")
-      .select("id, region, income_bracket");
+      .select("id, location, income_bracket");
 
-    // Get region-specific submissions
-    let regionSubmissions = allSubmissions;
-    if (region) {
-      regionSubmissions = allSubmissions?.filter((s) => s.region === region) || [];
+    // Get location-specific submissions
+    let locationSubmissions = allSubmissions;
+    if (location) {
+      locationSubmissions = allSubmissions?.filter((s) => s.location === location) || [];
     }
 
     // Get bracket-specific submissions
@@ -219,23 +219,23 @@ async function calculateRanking(
     };
 
     const allIds = allSubmissions?.map((s) => s.id) || [];
-    const regionIds = regionSubmissions ? regionSubmissions.map((s) => s.id) : [];
+    const locationIds = locationSubmissions ? locationSubmissions.map((s) => s.id) : [];
     const bracketIds = bracketSubmissions ? bracketSubmissions.map((s) => s.id) : [];
 
     const globalValues = await getMetricValues(allIds);
-    const regionValues = region ? await getMetricValues(regionIds) : globalValues;
+    const locationSpecificValues = location ? await getMetricValues(locationIds) : globalValues;
     const bracketValues = incomeBracket ? await getMetricValues(bracketIds) : globalValues;
 
     const globalRank = calculatePercentile(globalValues, value);
-    const regionRank = calculatePercentile(regionValues, value);
-    const bracketRank = calculatePercentile(bracketValues, value);
+    const locationRank = location ? calculatePercentile(locationSpecificValues, value) : null;
+    const bracketRank = incomeBracket ? calculatePercentile(bracketValues, value) : null;
 
     return NextResponse.json({
       metric,
       value,
       percentile_rank: Math.round(globalRank * 100) / 100,
-      region_rank: region ? Math.round(regionRank * 100) / 100 : null,
-      bracket_rank: incomeBracket ? Math.round(bracketRank * 100) / 100 : null,
+      location_rank: location ? Math.round(locationRank! * 100) / 100 : null,
+      bracket_rank: incomeBracket ? Math.round(bracketRank! * 100) / 100 : null,
       global_rank: Math.round(globalRank * 100) / 100,
     });
   } catch (error) {

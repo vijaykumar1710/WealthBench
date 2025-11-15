@@ -33,8 +33,9 @@ export async function POST(request: NextRequest) {
       .from("submissions")
       .insert({
         age_range: body.fixed.age_range,
-        region: body.fixed.region,
+        location: body.fixed.location,  // Changed from region to location
         income_bracket: body.fixed.income_bracket,
+        yoe: body.fixed.yoe,  // Added YOE field
         income: body.requiredFixed.income,
         savings: body.requiredFixed.savings,
         expenses: body.requiredFixed.expenses,
@@ -183,7 +184,7 @@ export async function POST(request: NextRequest) {
     const redirectParams = new URLSearchParams({
       submission_id: submissionId,
     });
-    if (body.fixed.region) redirectParams.append("region", body.fixed.region);
+    if (body.fixed.location) redirectParams.append("location", body.fixed.location);
     if (body.fixed.income_bracket) redirectParams.append("income_bracket", body.fixed.income_bracket);
     redirectParams.append("income", String(body.requiredFixed.income));
     redirectParams.append("savings", String(body.requiredFixed.savings));
