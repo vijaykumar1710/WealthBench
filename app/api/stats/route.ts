@@ -219,8 +219,8 @@ async function calculateRanking(
     };
 
     const allIds = allSubmissions?.map((s) => s.id) || [];
-    const regionIds = regionSubmissions.map((s) => s.id);
-    const bracketIds = bracketSubmissions.map((s) => s.id);
+    const regionIds = regionSubmissions ? regionSubmissions.map((s) => s.id) : [];
+    const bracketIds = bracketSubmissions ? bracketSubmissions.map((s) => s.id) : [];
 
     const globalValues = await getMetricValues(allIds);
     const regionValues = region ? await getMetricValues(regionIds) : globalValues;
@@ -249,4 +249,3 @@ async function calculateRanking(
     );
   }
 }
-

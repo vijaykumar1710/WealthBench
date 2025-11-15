@@ -18,24 +18,24 @@ export function calculateDerivedMetrics(
 
   // Calculate totals - use aggregate if provided, otherwise sum breakdown
   const stockTotal = optionalAggregates?.stock_value_total ?? 
-    (optionalBreakdown?.stocks?.reduce((sum, stock) => sum + stock.value, 0) || 0);
-  
+    (optionalBreakdown?.stocks?.reduce((sum, stock) => (sum ?? 0) + (stock.value ?? 0), 0) || 0);
+
   const mutualFundTotal = optionalAggregates?.mutual_fund_total ?? 
-    (optionalBreakdown?.mutual_funds?.reduce((sum, fund) => sum + fund.value, 0) || 0);
-  
+    (optionalBreakdown?.mutual_funds?.reduce((sum, fund) => (sum ?? 0) + (fund.value ?? 0), 0) || 0);
+
   const carTotal = optionalAggregates?.car_value_total ?? 
-    (optionalBreakdown?.cars?.reduce((sum, car) => sum + car.value, 0) || 0);
-  
+    (optionalBreakdown?.cars?.reduce((sum, car) => (sum ?? 0) + (car.value ?? 0), 0) || 0);
+
   const emiTotal = optionalAggregates?.emi_total ?? 
-    (optionalBreakdown?.emis?.reduce((sum, emi) => sum + emi.value, 0) || 0);
-  
+    (optionalBreakdown?.emis?.reduce((sum, emi) => (sum ?? 0) + (emi.value ?? 0), 0) || 0);
+
   const realEstateTotal = optionalAggregates?.real_estate_total_price ?? 
-    (optionalBreakdown?.real_estate?.reduce((sum, prop) => sum + prop.price, 0) || 0);
+    (optionalBreakdown?.real_estate?.reduce((sum, prop) => (sum ?? 0) + (prop.price ?? 0), 0) || 0);
 
   // Get other investments from aggregates or dynamic
-  const goldValue = optionalAggregates?.gold_value ?? findDynamic("gold");
-  const fixedDepositTotal = optionalAggregates?.fixed_deposit_total ?? findDynamic("fixed_deposit");
-  const cryptoValueTotal = optionalAggregates?.crypto_value_total ?? findDynamic("crypto_value");
+  const goldValue = optionalAggregates?.gold_value ?? findDynamic("gold") ?? 0;
+  const fixedDepositTotal = optionalAggregates?.fixed_deposit_total ?? findDynamic("fixed_deposit") ?? 0;
+  const cryptoValueTotal = optionalAggregates?.crypto_value_total ?? findDynamic("crypto_value") ?? 0;
 
   // Savings rate
   if (income && savings && income > 0) {
@@ -59,9 +59,9 @@ export function calculateDerivedMetrics(
 
   // Investment value (sum of stocks + mutual funds + gold + fixed_deposit + crypto)
   const investmentValue = [stockTotal, mutualFundTotal, goldValue, fixedDepositTotal, cryptoValueTotal]
-    .filter((v) => v !== null && v !== undefined && v > 0)
-    .reduce((a, b) => a + b, 0);
-  
+    .filter((v) => typeof v === "number" && v > 0)
+    .reduce((a, b) => (a ?? 0) + (b ?? 0), 0);
+
   if (investmentValue > 0) {
     result.push({ key: "investment_value", value: investmentValue });
   }
@@ -88,10 +88,10 @@ export function calculateDerivedMetrics(
   // Net worth calculation
   // Assets: savings + investment_value + real_estate_total + cars
   // Liabilities: debt + emis_total (monthly EMIs converted to annual for comparison)
-  const assets = [savings, investmentValue, realEstateTotal, carTotal]
-    .filter((v) => v !== null && v !== undefined && v > 0)
-    .reduce((a, b) => a + b, 0);
-  
+  const assets = [savings ?? 0, investmentValue, realEstateTotal, carTotal]
+    .filter((v) => typeof v === "number" && v > 0)
+    .reduce((a, b) => (a ?? 0) + (b ?? 0), 0);
+
   // For EMIs, we'll use monthly amount * 12 as annual liability estimate
   const annualEmis = emiTotal * 12;
   const liabilities = (debt ?? 0) + annualEmis;

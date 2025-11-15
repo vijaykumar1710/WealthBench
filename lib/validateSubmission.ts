@@ -95,55 +95,56 @@ export function validateSubmission(payload: SubmissionPayload): ValidationError[
   // Validate dynamic fields
   if (payload.dynamic) {
     payload.dynamic.forEach((field: DynamicField, index: number) => {
-    // Ensure keys are strings
-    if (typeof field.key !== "string" || field.key.trim() === "") {
-      errors.push({
-        field: `dynamic[${index}].key`,
-        message: "Key must be a non-empty string",
-      });
-    }
+      // Ensure keys are strings
+      if (typeof field.key !== "string" || field.key.trim() === "") {
+        errors.push({
+          field: `dynamic[${index}].key`,
+          message: "Key must be a non-empty string",
+        });
+      }
 
-    // Ensure values are numbers
-    if (typeof field.value !== "number" || isNaN(field.value)) {
-      errors.push({
-        field: `dynamic[${index}].value`,
-        message: "Value must be a valid number",
-      });
-    }
+      // Ensure values are numbers
+      if (typeof field.value !== "number" || isNaN(field.value)) {
+        errors.push({
+          field: `dynamic[${index}].value`,
+          message: "Value must be a valid number",
+        });
+      }
 
-    // Enforce valid ranges for specific fields
-    const key = field.key.toLowerCase();
-    const value = field.value;
+      // Enforce valid ranges for specific fields
+      const key = field.key.toLowerCase();
+      const value = field.value;
 
-    // No negative income, savings, or assets
-    if (
-      (key === "income" || key === "savings" || key === "gold" || 
-       key === "crypto" || key === "stocks" || key === "property_value") &&
-      value < 0
-    ) {
-      errors.push({
-        field: `dynamic[${index}].value`,
-        message: `${key} cannot be negative`,
-      });
-    }
+      // No negative income, savings, or assets
+      if (
+        (key === "income" || key === "savings" || key === "gold" ||
+         key === "crypto" || key === "stocks" || key === "property_value") &&
+        value < 0
+      ) {
+        errors.push({
+          field: `dynamic[${index}].value`,
+          message: `${key} cannot be negative`,
+        });
+      }
 
-    // No negative debt or EMI
-    if ((key === "debt" || key === "emi") && value < 0) {
-      errors.push({
-        field: `dynamic[${index}].value`,
-        message: `${key} cannot be negative`,
-      });
-    }
+      // No negative debt or EMI
+      if ((key === "debt" || key === "emi") && value < 0) {
+        errors.push({
+          field: `dynamic[${index}].value`,
+          message: `${key} cannot be negative`,
+        });
+      }
 
-    // Income should be positive
-    if (key === "income" && value <= 0) {
-      errors.push({
-        field: `dynamic[${index}].value`,
-        message: "Income must be greater than 0",
-      });
-    }
-  });
+      // Income should be positive
+      if (key === "income" && value <= 0) {
+        errors.push({
+          field: `dynamic[${index}].value`,
+          message: "Income must be greater than 0",
+        });
+      }
+    });
+  }
 
+  // Always return errors array, even if no errors found
   return errors;
 }
-
