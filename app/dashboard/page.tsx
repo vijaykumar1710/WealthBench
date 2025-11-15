@@ -1,6 +1,16 @@
 import { headers } from "next/headers";
 import Link from "next/link";
-import { PieChart, Wallet, TrendingUp, Filter } from "lucide-react";
+import {
+  PieChart,
+  Wallet,
+  TrendingUp,
+  Filter,
+  Users,
+  Activity,
+  AlertTriangle,
+  ArrowUpRight,
+  ArrowDownRight,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 type LeaderboardEntry = {
@@ -14,6 +24,17 @@ type LeaderboardEntry = {
 type DashboardPayload = {
   generated_at: string;
   ttl_seconds: number;
+  cohort_summary?: {
+    sample_size: number;
+    median_income: number;
+    median_savings_rate: number;
+    median_expense_rate: number;
+  };
+  cohort_comparison?: {
+    income: number;
+    savings_rate: number;
+    expense_rate: number;
+  };
   leaderboards: {
     income_by_occupation: LeaderboardEntry[];
     income_by_age: LeaderboardEntry[];
@@ -32,6 +53,7 @@ type DashboardPayload = {
     cities: string[];
     regions: string[];
     income_brackets: string[];
+    age_ranges: string[];
   };
 };
 
@@ -40,6 +62,7 @@ type Filters = {
   income_bracket?: string;
   region?: string;
   city?: string;
+  age_range?: string;
 };
 
 const MIN_REVALIDATE = 60;
@@ -87,6 +110,7 @@ const filterFields: { key: keyof Filters; label: string; placeholder: string }[]
   { key: "income_bracket", label: "Income Bracket", placeholder: "All brackets" },
   { key: "region", label: "Region", placeholder: "All regions" },
   { key: "city", label: "City", placeholder: "All cities" },
+  { key: "age_range", label: "Age Range", placeholder: "All ages" },
 ];
 
 function formatCurrency(value: number): string {
@@ -114,6 +138,7 @@ function normalizeFilters(searchParams: Record<string, string | string[] | undef
     income_bracket: getSingleValue(searchParams.income_bracket),
     region: getSingleValue(searchParams.region),
     city: getSingleValue(searchParams.city),
+    age_range: getSingleValue(searchParams.age_range),
   };
 }
 
@@ -125,6 +150,7 @@ function buildDashboardQuery(filters: Filters): URLSearchParams {
   if (filters.income_bracket) params.append("income_bracket[]", filters.income_bracket);
   if (filters.region) params.append("region[]", filters.region);
   if (filters.city) params.append("city[]", filters.city);
+  if (filters.age_range) params.append("age_range[]", filters.age_range);
 
   return params;
 }
@@ -215,6 +241,7 @@ function FiltersForm({ facets, currentFilters }: { facets: DashboardPayload["fac
     income_bracket: facets.income_brackets,
     region: facets.regions,
     city: facets.cities,
+    age_range: facets.age_ranges,
   };
 
   return (
@@ -258,6 +285,79 @@ function FiltersForm({ facets, currentFilters }: { facets: DashboardPayload["fac
         Apply Filters
       </button>
     </form>
+  );
+}
+
+function SummaryStatCard({
+  label,
+  value,
+  helper,
+  valueType,
+}: {
+  label: string;
+  value: number;
+  helper?: string;
+  valueType: "currency" | "percentage";
+}) {
+  const formatter = valueType === "currency" ? formatCurrency : formatPercentage;
+  return (
+    <div className="wb-card">
+      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</p>
+      <p className="mt-2 text-3xl font-bold text-gray-900">{formatter(value)}</p>
+      {helper && <p className="mt-1 text-xs text-gray-500">{helper}</p>}
+    </div>
+  );
+}
+
+function SampleSizeNotice({ sampleSize }: { sampleSize: number }) {
+  if (sampleSize >= 30) return null;
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+      <AlertTriangle className="h-4 w-4" />
+      <span>
+        Small cohort ({sampleSize} submissions). Insights may shift as more people share their data.
+      </span>
+    </div>
+  );
+}
+
+function ComparisonIndicator({ label, value }: { label: string; value: number }) {
+  const isPositive = value > 0;
+  const isNeutral = value === 0;
+  const Icon = isNeutral ? Activity : isPositive ? ArrowUpRight : ArrowDownRight;
+  const colorClass = isNeutral ? "text-gray-600" : isPositive ? "text-emerald-600" : "text-red-600";
+  const badgeBg = isNeutral ? "bg-gray-100 text-gray-700" : isPositive ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700";
+
+  return (
+    <div className="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2">
+      <div>
+        <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
+        <p className={`text-sm font-semibold ${colorClass}`}>
+          {isNeutral ? "On par" : `${isPositive ? "+" : ""}${value.toFixed(1)}% vs All`}
+        </p>
+      </div>
+      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${badgeBg}`}>
+        <Icon className="h-3.5 w-3.5" />
+        {isNeutral ? "0%" : `${value.toFixed(1)}%`}
+      </span>
+    </div>
+  );
+}
+
+function CohortComparisonCard({ comparison }: { comparison: DashboardPayload["cohort_comparison"] }) {
+  if (!comparison) return null;
+  return (
+    <div className="wb-card space-y-3">
+      <div className="flex items-center gap-2">
+        <Users className="h-4 w-4 text-blue-600" />
+        <p className="text-sm font-semibold text-gray-800">Compared to all submissions</p>
+      </div>
+      <div className="grid gap-3 md:grid-cols-3">
+        <ComparisonIndicator label="Income" value={comparison.income} />
+        <ComparisonIndicator label="Savings Rate" value={comparison.savings_rate} />
+        <ComparisonIndicator label="Expense Rate" value={comparison.expense_rate} />
+      </div>
+    </div>
   );
 }
 
@@ -315,6 +415,35 @@ export default async function DashboardPage({
         {data && (
           <>
             <FiltersForm facets={data.facets} currentFilters={filters} />
+
+            {data.cohort_summary && (
+              <section className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-3">
+                  <SummaryStatCard
+                    label="Median Income"
+                    value={data.cohort_summary.median_income}
+                    valueType="currency"
+                    helper={`Sample size • ${data.cohort_summary.sample_size}`}
+                  />
+                  <SummaryStatCard
+                    label="Median Savings Rate"
+                    value={data.cohort_summary.median_savings_rate}
+                    valueType="percentage"
+                    helper="Percentage of income saved"
+                  />
+                  <SummaryStatCard
+                    label="Median Expense Rate"
+                    value={data.cohort_summary.median_expense_rate}
+                    valueType="percentage"
+                    helper="Annual spending vs income"
+                  />
+                </div>
+                <div className="flex flex-col gap-4 md:flex-row">
+                  <SampleSizeNotice sampleSize={data.cohort_summary.sample_size} />
+                  {data.cohort_comparison && <CohortComparisonCard comparison={data.cohort_comparison} />}
+                </div>
+              </section>
+            )}
 
             <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <MonthlyEmiCard data={data.averages.monthly_emi} />

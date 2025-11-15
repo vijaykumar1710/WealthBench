@@ -98,6 +98,7 @@ export type Submission = {
   savings_total: number | null;
   monthly_expenses: number | null;
   assets_total: number | null;
+  investment_total?: number | null;
   liabilities_total: number | null;
   net_worth: number | null;
   stock_value_total?: number | null;
@@ -105,6 +106,8 @@ export type Submission = {
   real_estate_total_price?: number | null;
   gold_grams?: number | null;
   gold_value_estimate?: number | null;
+  savings_rate?: number | null;
+  expense_rate?: number | null;
   additional_metrics: {
     savings_rate?: number;
     investments?: any;
