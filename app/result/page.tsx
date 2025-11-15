@@ -19,7 +19,6 @@ export default function ResultPage() {
   const [rankings, setRankings] = useState<RankingResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [submissionData, setSubmissionData] = useState<any>(null);
 
   useEffect(() => {
     const fetchRankings = async () => {
