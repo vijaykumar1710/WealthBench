@@ -20,13 +20,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Insert into submissions table
+    // Filter out fixed fields from dynamic fields to avoid duplicates
+    const fixedFieldKeys = [
+      "income",
+      "savings",
+      "expenses",
+      "emi",
+      "gold",
+      "fixed_deposit",
+      "car_value",
+      "stock_value",
+      "crypto_value",
+      "real_estate_price",
+    ];
+    const filteredDynamic = body.dynamic.filter(
+      (field) => !fixedFieldKeys.includes(field.key.toLowerCase())
+    );
+
+    // Insert into submissions table with all fixed fields
     const { data: submission, error: submissionError } = await supabaseServer
       .from("submissions")
       .insert({
         age_range: body.fixed.age_range,
         region: body.fixed.region,
         income_bracket: body.fixed.income_bracket,
+        income: body.fixed.income,
+        savings: body.fixed.savings,
+        expenses: body.fixed.expenses,
+        emi: body.fixed.emi,
+        gold: body.fixed.gold,
+        fixed_deposit: body.fixed.fixed_deposit,
+        car_value: body.fixed.car_value,
+        stock_value: body.fixed.stock_value,
+        crypto_value: body.fixed.crypto_value,
+        real_estate_region: body.fixed.real_estate_region,
+        real_estate_price: body.fixed.real_estate_price,
       })
       .select()
       .single();
@@ -40,26 +68,28 @@ export async function POST(request: NextRequest) {
 
     const submissionId = submission.id;
 
-    // Insert dynamic fields
-    const dynamicFields = body.dynamic.map((field) => ({
-      submission_id: submissionId,
-      key: field.key,
-      value: field.value,
-    }));
+    // Insert filtered dynamic fields (excluding fixed fields)
+    if (filteredDynamic.length > 0) {
+      const dynamicFields = filteredDynamic.map((field) => ({
+        submission_id: submissionId,
+        key: field.key,
+        value: field.value,
+      }));
 
-    const { error: dynamicError } = await supabaseServer
-      .from("submission_values")
-      .insert(dynamicFields);
+      const { error: dynamicError } = await supabaseServer
+        .from("submission_values")
+        .insert(dynamicFields);
 
-    if (dynamicError) {
-      return NextResponse.json(
-        { success: false, error: dynamicError.message },
-        { status: 500 }
-      );
+      if (dynamicError) {
+        return NextResponse.json(
+          { success: false, error: dynamicError.message },
+          { status: 500 }
+        );
+      }
     }
 
-    // Calculate and insert derived metrics
-    const derivedMetrics = calculateDerivedMetrics(body.dynamic);
+    // Calculate and insert derived metrics using fixed fields and dynamic fields
+    const derivedMetrics = calculateDerivedMetrics(body.fixed, filteredDynamic);
     if (derivedMetrics.length > 0) {
       logger.info("POST /api/submit - Derived metrics computed:", derivedMetrics.map(m => m.key));
       const derivedFields = derivedMetrics.map((field) => ({
@@ -85,6 +115,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       submission_id: submissionId,
+      derived_metrics: derivedMetrics.map((m) => m.key),
     });
   } catch (error) {
     logger.error("POST /api/submit - Error:", error);
