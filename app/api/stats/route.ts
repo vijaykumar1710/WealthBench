@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabaseServer";
+import { logger } from "@/lib/logger";
 
 export async function GET(request: NextRequest) {
   try {
+    logger.info("GET /api/stats - Incoming request");
     const searchParams = request.nextUrl.searchParams;
     const ageRange = searchParams.get("age_range");
     const region = searchParams.get("region");
@@ -26,6 +28,7 @@ export async function GET(request: NextRequest) {
     const { data: submissions, error: submissionsError } = await submissionsQuery;
 
     if (submissionsError) {
+      logger.error("GET /api/stats - Error fetching submissions:", submissionsError);
       return NextResponse.json(
         { success: false, error: submissionsError.message },
         { status: 500 }
@@ -47,6 +50,7 @@ export async function GET(request: NextRequest) {
       .in("submission_id", submissionIds);
 
     if (valuesError) {
+      logger.error("GET /api/stats - Error fetching values:", valuesError);
       return NextResponse.json(
         { success: false, error: valuesError.message },
         { status: 500 }
@@ -92,10 +96,12 @@ export async function GET(request: NextRequest) {
       };
     }
 
+    logger.info("GET /api/stats - Success, metrics computed for", Object.keys(metrics).length, "keys");
     return NextResponse.json({
       metrics,
     });
   } catch (error) {
+    logger.error("GET /api/stats - Error:", error);
     return NextResponse.json(
       {
         success: false,
