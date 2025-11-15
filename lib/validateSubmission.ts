@@ -1,150 +1,96 @@
-import { SubmissionPayload, DynamicField } from "@/types/submission";
+import { SubmissionPayload } from "@/types/submission";
 
 export interface ValidationError {
   field?: string;
   message: string;
 }
 
+const MAX_VALUE = 10_00_00_000; // ₹10 Crore ceiling for sanity checks
+
+const isInvalidValue = (value: unknown, allowZero = false) => {
+  if (typeof value !== "number" || Number.isNaN(value)) return true;
+  if (!allowZero && value <= 0) return true;
+  if (value < 0) return true;
+  if (value > MAX_VALUE) return true;
+  return false;
+};
+
 export function validateSubmission(payload: SubmissionPayload): ValidationError[] {
   const errors: ValidationError[] = [];
 
-  // Validate required fixed fields
-  if (!payload.requiredFixed) {
-    errors.push({
-      field: "requiredFixed",
-      message: "Required fields (income, savings, expenses) are missing",
-    });
+  if (!payload.demographics) {
+    errors.push({ field: "demographics", message: "Demographics are required" });
+  } else {
+    const { age, region, city, years_experience, occupation } = payload.demographics;
+    if (!Number.isInteger(age) || age <= 0 || age > 120) {
+      errors.push({ field: "demographics.age", message: "Age must be between 1 and 120" });
+    }
+    if (!region?.trim()) {
+      errors.push({ field: "demographics.region", message: "Region is required" });
+    }
+    if (!city?.trim()) {
+      errors.push({ field: "demographics.city", message: "City is required" });
+    }
+    if (typeof years_experience !== "number" || years_experience < 0 || years_experience > 80) {
+      errors.push({ field: "demographics.years_experience", message: "Experience must be >= 0" });
+    }
+    if (!occupation?.trim()) {
+      errors.push({ field: "demographics.occupation", message: "Occupation is required" });
+    }
+  }
+
+  if (!payload.financials) {
+    errors.push({ field: "financials", message: "Financial snapshot is required" });
     return errors;
   }
 
-  if (!payload.requiredFixed.income || payload.requiredFixed.income <= 0) {
-    errors.push({
-      field: "requiredFixed.income",
-      message: "Income must be greater than 0",
-    });
+  const {
+    income_yearly,
+    monthly_expenses,
+    savings_total,
+    stock_value_total,
+    mutual_fund_total,
+    real_estate_total_price,
+    gold_grams,
+    gold_value_estimate,
+  } = payload.financials;
+
+  if (isInvalidValue(income_yearly)) {
+    errors.push({ field: "financials.income_yearly", message: "Income must be between 1 and 10 Crore" });
   }
 
-  if (payload.requiredFixed.savings < 0) {
-    errors.push({
-      field: "requiredFixed.savings",
-      message: "Savings cannot be negative",
-    });
+  if (isInvalidValue(monthly_expenses, true)) {
+    errors.push({ field: "financials.monthly_expenses", message: "Monthly expenses must be >= 0 and reasonable" });
   }
 
-  if (payload.requiredFixed.expenses < 0) {
-    errors.push({
-      field: "requiredFixed.expenses",
-      message: "Expenses cannot be negative",
-    });
+  if (isInvalidValue(savings_total, true)) {
+    errors.push({ field: "financials.savings_total", message: "Savings must be >= 0 and reasonable" });
   }
 
-  // Validate optional aggregates
-  if (payload.optionalAggregates) {
-    Object.entries(payload.optionalAggregates).forEach(([key, value]) => {
-      if (value !== null && value !== undefined && value < 0) {
-        errors.push({
-          field: `optionalAggregates.${key}`,
-          message: `${key} cannot be negative`,
-        });
+  const optionalNumericFields: { field: keyof typeof payload.financials; label: string }[] = [
+    { field: "stock_value_total", label: "Stock value" },
+    { field: "mutual_fund_total", label: "Mutual fund value" },
+    { field: "real_estate_total_price", label: "Real estate value" },
+    { field: "gold_grams", label: "Gold grams" },
+    { field: "gold_value_estimate", label: "Gold value" },
+  ];
+
+  optionalNumericFields.forEach(({ field, label }) => {
+    const value = payload.financials?.[field];
+    if (value !== undefined && value !== null) {
+      if (isInvalidValue(value, true)) {
+        errors.push({ field: `financials.${field}`, message: `${label} must be >= 0 and reasonable` });
       }
-    });
-  }
-
-  // Validate optional breakdown
-  if (payload.optionalBreakdown) {
-    // Validate real estate entries
-    if (payload.optionalBreakdown.real_estate) {
-      payload.optionalBreakdown.real_estate.forEach((prop, index) => {
-        if (!prop.location || prop.location.trim() === "") {
-          errors.push({
-            field: `optionalBreakdown.real_estate[${index}].location`,
-            message: "Location is required for real estate",
-          });
-        }
-        if (prop.price < 0) {
-          errors.push({
-            field: `optionalBreakdown.real_estate[${index}].price`,
-            message: "Real estate price cannot be negative",
-          });
-        }
-      });
     }
+  });
 
-    // Validate stocks, mutual funds, cars, EMIs
-    ["stocks", "mutual_funds", "cars", "emis"].forEach((category) => {
-      const items = (payload.optionalBreakdown as any)[category];
-      if (items) {
-        items.forEach((item: any, index: number) => {
-          if (!item.name || item.name.trim() === "") {
-            errors.push({
-              field: `optionalBreakdown.${category}[${index}].name`,
-              message: `${category} name is required`,
-            });
-          }
-          if (item.value < 0) {
-            errors.push({
-              field: `optionalBreakdown.${category}[${index}].value`,
-              message: `${category} value cannot be negative`,
-            });
-          }
-        });
-      }
-    });
+  if (typeof gold_grams === "number" && gold_grams < 0) {
+    errors.push({ field: "financials.gold_grams", message: "Gold grams cannot be negative" });
   }
 
-  // Validate dynamic fields
-  if (payload.dynamic) {
-    payload.dynamic.forEach((field: DynamicField, index: number) => {
-      // Ensure keys are strings
-      if (typeof field.key !== "string" || field.key.trim() === "") {
-        errors.push({
-          field: `dynamic[${index}].key`,
-          message: "Key must be a non-empty string",
-        });
-      }
-
-      // Ensure values are numbers
-      if (typeof field.value !== "number" || isNaN(field.value)) {
-        errors.push({
-          field: `dynamic[${index}].value`,
-          message: "Value must be a valid number",
-        });
-      }
-
-      // Enforce valid ranges for specific fields
-      const key = field.key.toLowerCase();
-      const value = field.value;
-
-      // No negative income, savings, or assets
-      if (
-        (key === "income" || key === "savings" || key === "gold" ||
-         key === "crypto" || key === "stocks" || key === "property_value") &&
-        value < 0
-      ) {
-        errors.push({
-          field: `dynamic[${index}].value`,
-          message: `${key} cannot be negative`,
-        });
-      }
-
-      // No negative debt or EMI
-      if ((key === "debt" || key === "emi") && value < 0) {
-        errors.push({
-          field: `dynamic[${index}].value`,
-          message: `${key} cannot be negative`,
-        });
-      }
-
-      // Income should be positive
-      if (key === "income" && value <= 0) {
-        errors.push({
-          field: `dynamic[${index}].value`,
-          message: "Income must be greater than 0",
-        });
-      }
-    });
+  if (typeof gold_value_estimate === "number" && gold_value_estimate < 0) {
+    errors.push({ field: "financials.gold_value_estimate", message: "Gold value cannot be negative" });
   }
 
-  // Always return errors array, even if no errors found
   return errors;
 }

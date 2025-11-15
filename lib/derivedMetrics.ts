@@ -1,4 +1,34 @@
-import { DynamicField, RequiredFixed, OptionalAggregates, OptionalBreakdown } from "@/types/submission";
+type DynamicField = {
+  key: string;
+  value: number;
+};
+
+type RequiredFixed = {
+  income: number | null | undefined;
+  savings: number | null | undefined;
+  expenses: number | null | undefined;
+};
+
+type OptionalAggregates = {
+  stock_value_total?: number | null;
+  mutual_fund_total?: number | null;
+  car_value_total?: number | null;
+  emi_total?: number | null;
+  real_estate_total_price?: number | null;
+  gold_value?: number | null;
+  fixed_deposit_total?: number | null;
+  crypto_value_total?: number | null;
+};
+
+type ValueItem = { name?: string | null; value?: number | null; price?: number | null };
+
+type OptionalBreakdown = {
+  stocks?: ValueItem[];
+  mutual_funds?: ValueItem[];
+  cars?: ValueItem[];
+  emis?: ValueItem[];
+  real_estate?: ValueItem[];
+};
 
 // Helper function to safely convert to number
 const toNumber = (value: any, defaultValue = 0): number => {

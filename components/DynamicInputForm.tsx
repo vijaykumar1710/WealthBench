@@ -2,136 +2,132 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { PieChart, Wallet, Layers, BarChart, User } from "lucide-react";
-import { SubmissionPayload } from "@/types/submission";
-import CategoryRow from "./CategoryRow";
+import { PieChart, User } from "lucide-react";
+import { Financials, SubmissionPayload } from "@/types/submission";
 import CollapsibleSection from "./CollapsibleSection";
+type MessageState = { type: "success" | "error"; text: string } | null;
 
 export default function DynamicInputForm() {
   const router = useRouter();
-  
+
   // Demographics
-  const [ageRange, setAgeRange] = useState<string>("");
-  const [region, setRegion] = useState<string>("");
-  const [incomeBracket, setIncomeBracket] = useState<string>("");
-  
-  // Required fields
-  const [income, setIncome] = useState<number>(0);
-  const [savings, setSavings] = useState<number>(0);
-  const [expenses, setExpenses] = useState<number>(0);
-  
-  // Optional aggregate totals
+  const [age, setAge] = useState<number>(0);
+  const [city, setCity] = useState<string>("");
+  const [occupation, setOccupation] = useState<string>("");
+  const [yearsExperience, setYearsExperience] = useState<number>(0);
+
+  // Financial snapshot
+  const [annualIncome, setAnnualIncome] = useState<number>(0);
+  const [monthlySalary, setMonthlySalary] = useState<number>(0);
+  const [monthlyExpenses, setMonthlyExpenses] = useState<number>(0);
+  const [monthlySavings, setMonthlySavings] = useState<number | null>(null);
+  const [monthlyEmi, setMonthlyEmi] = useState<number | null>(null);
+  const [totalSavings, setTotalSavings] = useState<number | null>(null);
+  const [stockValue, setStockValue] = useState<number | null>(null);
+  const [mutualFundValue, setMutualFundValue] = useState<number | null>(null);
+  const [goldGrams, setGoldGrams] = useState<number | null>(null);
   const [goldValue, setGoldValue] = useState<number | null>(null);
-  const [fixedDepositTotal, setFixedDepositTotal] = useState<number | null>(null);
-  const [cryptoValueTotal, setCryptoValueTotal] = useState<number | null>(null);
-  const [stockValueTotal, setStockValueTotal] = useState<number | null>(null);
-  const [mutualFundTotal, setMutualFundTotal] = useState<number | null>(null);
-  const [carValueTotal, setCarValueTotal] = useState<number | null>(null);
-  const [emiTotal, setEmiTotal] = useState<number | null>(null);
-  const [realEstateTotalPrice, setRealEstateTotalPrice] = useState<number | null>(null);
-  
-  // Optional detailed breakdown
-  const [realEstate, setRealEstate] = useState<Array<{ location: string; price: number }>>([]);
-  const [stocks, setStocks] = useState<Array<{ name: string; value: number }>>([]);
-  const [mutualFunds, setMutualFunds] = useState<Array<{ name: string; value: number }>>([]);
-  const [cars, setCars] = useState<Array<{ name: string; value: number }>>([]);
-  const [emis, setEmis] = useState<Array<{ name: string; value: number }>>([]);
-  
-  // Dynamic fields
-  const [dynamicFields, setDynamicFields] = useState<Array<{ key: string; value: number }>>([
-    { key: "", value: 0 },
-  ]);
-  
+  const [realEstateValue, setRealEstateValue] = useState<number | null>(null);
+  const [notes, setNotes] = useState<string>("");
+
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-
-  // Real Estate handlers
-  const addRealEstate = () => {
-    setRealEstate([...realEstate, { location: "", price: 0 }]);
-  };
-  const updateRealEstate = (index: number, field: "location" | "price", value: string | number) => {
-    const updated = [...realEstate];
-    updated[index] = { ...updated[index], [field]: value };
-    setRealEstate(updated);
-  };
-  const removeRealEstate = (index: number) => {
-    setRealEstate(realEstate.filter((_, i) => i !== index));
-  };
-
-  // Category handlers (stocks, mutual funds, cars, EMIs)
-  const createCategoryHandlers = (
-    items: Array<{ name: string; value: number }>,
-    setItems: (items: Array<{ name: string; value: number }>) => void
-  ) => ({
-    onAdd: () => setItems([...items, { name: "", value: 0 }]),
-    onUpdate: (index: number, key: "name" | "value", value: string | number) => {
-      const updated = [...items];
-      updated[index] = { ...updated[index], [key]: value };
-      setItems(updated);
-    },
-    onRemove: (index: number) => setItems(items.filter((_, i) => i !== index)),
-  });
-
-  // Dynamic fields handlers
-  const addField = () => {
-    setDynamicFields([...dynamicFields, { key: "", value: 0 }]);
-  };
-  const removeField = (index: number) => {
-    setDynamicFields(dynamicFields.filter((_, i) => i !== index));
-  };
-  const updateField = (index: number, field: "key" | "value", value: string | number) => {
-    const updated = [...dynamicFields];
-    updated[index] = { ...updated[index], [field]: value };
-    setDynamicFields(updated);
-  };
+  const [message, setMessage] = useState<MessageState>(null);
+  const inputClass = "border rounded-md p-3 text-base w-full text-gray-900 bg-white";
+  const labelClass = "block text-sm font-medium text-gray-600 mb-1";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setMessage(null);
 
-    // Filter out empty dynamic fields
-    const validDynamicFields = dynamicFields.filter((f) => f.key.trim() !== "");
+    if (
+      !age ||
+      age <= 0 ||
+      !city.trim() ||
+      !occupation.trim() ||
+      yearsExperience < 0 ||
+      !annualIncome ||
+      annualIncome <= 0 ||
+      !monthlySalary ||
+      monthlySalary <= 0 ||
+      !monthlyExpenses ||
+      monthlyExpenses <= 0 ||
+      monthlySavings === null ||
+      monthlySavings <= 0 ||
+      monthlyEmi === null ||
+      monthlyEmi < 0 ||
+      totalSavings === null ||
+      totalSavings <= 0 ||
+      stockValue === null ||
+      stockValue < 0 ||
+      mutualFundValue === null ||
+      mutualFundValue < 0 ||
+      realEstateValue === null ||
+      realEstateValue < 0 ||
+      goldGrams === null ||
+      goldGrams < 0
+    ) {
+      setMessage({
+        type: "error",
+        text: "Please fill all required financial inputs including investments and savings.",
+      });
+      setIsSubmitting(false);
+      return;
+    }
 
-    // Build optionalAggregates (only include non-null values)
-    const optionalAggregates: Record<string, number> = {};
-    if (goldValue !== null && goldValue !== undefined) optionalAggregates.gold_value = goldValue;
-    if (fixedDepositTotal !== null && fixedDepositTotal !== undefined) optionalAggregates.fixed_deposit_total = fixedDepositTotal;
-    if (cryptoValueTotal !== null && cryptoValueTotal !== undefined) optionalAggregates.crypto_value_total = cryptoValueTotal;
-    if (stockValueTotal !== null && stockValueTotal !== undefined) optionalAggregates.stock_value_total = stockValueTotal;
-    if (mutualFundTotal !== null && mutualFundTotal !== undefined) optionalAggregates.mutual_fund_total = mutualFundTotal;
-    if (carValueTotal !== null && carValueTotal !== undefined) optionalAggregates.car_value_total = carValueTotal;
-    if (emiTotal !== null && emiTotal !== undefined) optionalAggregates.emi_total = emiTotal;
-    if (realEstateTotalPrice !== null && realEstateTotalPrice !== undefined) optionalAggregates.real_estate_total_price = realEstateTotalPrice;
+    const emiValue = monthlyEmi !== null && monthlyEmi > 0 ? monthlyEmi : null;
+    const savingsValue = totalSavings !== null && totalSavings > 0 ? totalSavings : 0;
 
-    // Build optionalBreakdown (only include non-empty arrays)
-    const optionalBreakdown: Record<string, any[]> = {};
-    const filteredStocks = stocks.filter((s) => s.name.trim() !== "");
-    const filteredMutualFunds = mutualFunds.filter((m) => m.name.trim() !== "");
-    const filteredCars = cars.filter((c) => c.name.trim() !== "");
-    const filteredEmis = emis.filter((e) => e.name.trim() !== "");
-    const filteredRealEstate = realEstate.filter((p) => p.location.trim() !== "");
+    const financials: Financials = {
+      income_yearly: annualIncome,
+      monthly_expenses: monthlyExpenses,
+      savings_total: savingsValue,
+      stock_value_total: stockValue ?? undefined,
+      mutual_fund_total: mutualFundValue ?? undefined,
+      real_estate_total_price: realEstateValue ?? undefined,
+      gold_grams: goldGrams ?? undefined,
+      gold_value_estimate: goldValue ?? undefined,
+    };
 
-    if (filteredStocks.length > 0) optionalBreakdown.stocks = filteredStocks;
-    if (filteredMutualFunds.length > 0) optionalBreakdown.mutual_funds = filteredMutualFunds;
-    if (filteredCars.length > 0) optionalBreakdown.cars = filteredCars;
-    if (filteredEmis.length > 0) optionalBreakdown.emis = filteredEmis;
-    if (filteredRealEstate.length > 0) optionalBreakdown.real_estate = filteredRealEstate;
+    const investmentTotal =
+      savingsValue +
+      (stockValue ?? 0) +
+      (mutualFundValue ?? 0) +
+      (realEstateValue ?? 0) +
+      (goldValue ?? 0);
+
+    if (investmentTotal > 0) {
+      financials.assets_total = investmentTotal;
+    }
+
+    if (emiValue) {
+      financials.other_liabilities = [{ name: "Monthly EMI", amount: emiValue * 12 }];
+      financials.liabilities_total = emiValue * 12;
+    }
+
+    const additionalMetrics: Record<string, any> = {
+      monthly_salary: monthlySalary,
+      monthly_expenses: monthlyExpenses,
+      monthly_savings: monthlySavings,
+      stock_value_total: stockValue,
+      mutual_fund_total: mutualFundValue,
+      real_estate_total_price: realEstateValue,
+      gold_grams: goldGrams,
+      gold_value_estimate: goldValue,
+    };
+    additionalMetrics.monthly_emi = monthlyEmi;
+    if (notes.trim()) additionalMetrics.notes = notes.trim();
 
     const payload: SubmissionPayload = {
-      fixed: {
-        age_range: ageRange || null,
-        location: region || null,
-        income_bracket: incomeBracket || null,
+      demographics: {
+        age,
+        region: city.trim(),
+        city: city.trim(),
+        occupation: occupation.trim(),
+        years_experience: yearsExperience,
       },
-      requiredFixed: {
-        income,
-        savings,
-        expenses,
-      },
-      optionalAggregates: Object.keys(optionalAggregates).length > 0 ? optionalAggregates : undefined,
-      optionalBreakdown: Object.keys(optionalBreakdown).length > 0 ? optionalBreakdown : undefined,
-      dynamic: validDynamicFields,
+      financials,
+      additional_metrics: additionalMetrics,
     };
 
     try {
@@ -146,10 +142,28 @@ export default function DynamicInputForm() {
       const data = await response.json();
 
       if (data.success) {
-        if (data.redirect_url) {
-          router.push(data.redirect_url);
+        const submissionId = data.data?.id ?? data.submission_id;
+        if (submissionId) {
+          const netWorthForQuery = (financials.assets_total ?? investmentTotal) - (financials.liabilities_total ?? 0);
+          const queryParams = new URLSearchParams({
+            submission_id: submissionId,
+            income: String(annualIncome),
+            savings: String(savingsValue),
+            expenses: String(monthlyExpenses),
+            net_worth: String(netWorthForQuery),
+            investment_value: String(investmentTotal),
+            stock_value_total: String(stockValue ?? 0),
+            mutual_fund_total: String(mutualFundValue ?? 0),
+            real_estate_total_price: String(realEstateValue ?? 0),
+            gold_value_estimate: String(goldValue ?? 0),
+          });
+          if (city.trim()) {
+            queryParams.set("region", city.trim());
+          }
+          router.push(`/result?${queryParams.toString()}`);
         } else {
-          router.push(`/result?submission_id=${data.submission_id}`);
+          setMessage({ type: "success", text: "Submission received!" });
+          setIsSubmitting(false);
         }
       } else {
         setMessage({ type: "error", text: data.error || "Submission failed. Please try again." });
@@ -164,341 +178,231 @@ export default function DynamicInputForm() {
     }
   };
 
-  const inputClass = "border rounded-md p-3 text-base w-full text-gray-900 bg-white";
-  const labelClass = "block text-sm font-medium text-gray-600 mb-1";
-
   return (
     <div className="max-w-2xl mx-auto space-y-section px-4 md:px-0">
       <form onSubmit={handleSubmit} className="space-y-section">
-        {/* Demographics */}
+        <p className="text-sm text-gray-500">
+          We collect these inputs anonymously so you can benchmark yourself against similar peers.
+        </p>
+
         <CollapsibleSection title="Demographics" icon={<User className="w-5 h-5" />} defaultOpen={true}>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label htmlFor="age_range" className={labelClass}>Age Range</label>
-              <select
-                id="age_range"
-                value={ageRange}
-                onChange={(e) => setAgeRange(e.target.value)}
-                className={inputClass}
-              >
-                <option value="">Select age range</option>
-                <option value="18-24">18-24</option>
-                <option value="25-34">25-34</option>
-                <option value="35-44">35-44</option>
-                <option value="45-54">45-54</option>
-                <option value="55+">55+</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="region" className={labelClass}>Region</label>
-              <input
-                type="text"
-                id="region"
-                value={region}
-                onChange={(e) => setRegion(e.target.value)}
-                placeholder="e.g., North, South"
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label htmlFor="income_bracket" className={labelClass}>Income Bracket</label>
-              <select
-                id="income_bracket"
-                value={incomeBracket}
-                onChange={(e) => setIncomeBracket(e.target.value)}
-                className={inputClass}
-              >
-                <option value="">Select income bracket</option>
-                <option value="<50k">&lt;50k</option>
-                <option value="50k-100k">50k-100k</option>
-                <option value="100k-200k">100k-200k</option>
-                <option value="200k+">200k+</option>
-              </select>
-            </div>
-          </div>
-        </CollapsibleSection>
-
-        {/* Required Financial Basics */}
-        <CollapsibleSection title="Required Basics" icon={<PieChart className="w-5 h-5" />} defaultOpen={true}>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label htmlFor="income" className={labelClass}>Income *</label>
-              <input
-                type="number"
-                id="income"
-                value={income || ""}
-                onChange={(e) => setIncome(parseFloat(e.target.value) || 0)}
-                placeholder="Annual income"
-                step="0.01"
-                required
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label htmlFor="savings" className={labelClass}>Savings *</label>
-              <input
-                type="number"
-                id="savings"
-                value={savings || ""}
-                onChange={(e) => setSavings(parseFloat(e.target.value) || 0)}
-                placeholder="Total savings"
-                step="0.01"
-                required
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label htmlFor="expenses" className={labelClass}>Expenses *</label>
-              <input
-                type="number"
-                id="expenses"
-                value={expenses || ""}
-                onChange={(e) => setExpenses(parseFloat(e.target.value) || 0)}
-                placeholder="Monthly expenses"
-                step="0.01"
-                required
-                className={inputClass}
-              />
-            </div>
-          </div>
-        </CollapsibleSection>
-
-        {/* Optional Aggregate Totals */}
-        <CollapsibleSection title="Aggregate Totals" icon={<Wallet className="w-5 h-5" />}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="gold_value" className={labelClass}>Gold Value</label>
+              <label htmlFor="age" className={labelClass}>Age *</label>
+              <input
+                type="number"
+                id="age"
+                value={age || ""}
+                onChange={(e) => setAge(parseInt(e.target.value, 10) || 0)}
+                placeholder="Enter your age"
+                min={18}
+                className={inputClass}
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="city" className={labelClass}>City *</label>
+              <input
+                type="text"
+                id="city"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                placeholder="e.g., Bengaluru"
+                className={inputClass}
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="occupation" className={labelClass}>Occupation *</label>
+              <input
+                type="text"
+                id="occupation"
+                value={occupation}
+                onChange={(e) => setOccupation(e.target.value)}
+                placeholder="e.g., Product Manager, Software Engineer"
+                className={inputClass}
+                required
+              />
+              <p className="text-xs text-gray-500 mt-1">We only use this to compare you against similar career cohorts.</p>
+            </div>
+            <div>
+              <label htmlFor="years_experience" className={labelClass}>Years of Experience *</label>
+              <input
+                type="number"
+                id="years_experience"
+                value={yearsExperience || ""}
+                onChange={(e) => setYearsExperience(parseInt(e.target.value, 10) || 0)}
+                placeholder="Total years worked"
+                min={0}
+                className={inputClass}
+                required
+              />
+            </div>
+          </div>
+        </CollapsibleSection>
+
+        <CollapsibleSection title="Financial Snapshot" icon={<PieChart className="w-5 h-5" />} defaultOpen={true}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="annual_income" className={labelClass}>Annual Income *</label>
+              <input
+                type="number"
+                id="annual_income"
+                value={annualIncome || ""}
+                onChange={(e) => setAnnualIncome(parseFloat(e.target.value) || 0)}
+                placeholder="Yearly income"
+                min={0}
+                className={inputClass}
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="monthly_salary" className={labelClass}>Monthly Salary *</label>
+              <input
+                type="number"
+                id="monthly_salary"
+                value={monthlySalary || ""}
+                onChange={(e) => setMonthlySalary(parseFloat(e.target.value) || 0)}
+                placeholder="Take-home per month"
+                min={0}
+                className={inputClass}
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="monthly_expenses" className={labelClass}>Monthly Expenses *</label>
+              <input
+                type="number"
+                id="monthly_expenses"
+                value={monthlyExpenses || ""}
+                onChange={(e) => setMonthlyExpenses(parseFloat(e.target.value) || 0)}
+                placeholder="Average monthly spend"
+                min={0}
+                className={inputClass}
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="monthly_savings" className={labelClass}>Monthly Savings *</label>
+              <input
+                type="number"
+                id="monthly_savings"
+                value={monthlySavings ?? ""}
+                onChange={(e) => setMonthlySavings(e.target.value ? parseFloat(e.target.value) : null)}
+                placeholder="What you typically save per month"
+                min={0}
+                className={inputClass}
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="monthly_emi" className={labelClass}>Monthly EMI</label>
+              <input
+                type="number"
+                id="monthly_emi"
+                value={monthlyEmi ?? ""}
+                onChange={(e) => setMonthlyEmi(e.target.value ? parseFloat(e.target.value) : null)}
+                placeholder="Total EMIs per month"
+                min={0}
+                className={inputClass}
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="total_savings" className={labelClass}>Total Savings *</label>
+              <input
+                type="number"
+                id="total_savings"
+                value={totalSavings ?? ""}
+                onChange={(e) => setTotalSavings(e.target.value ? parseFloat(e.target.value) : null)}
+                placeholder="Overall savings corpus"
+                min={0}
+                className={inputClass}
+                required
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Include cash, bank balances, mutual funds, stocks, FDs, PPF/EPF, crypto, etc. Gold and real estate are tracked separately below.
+              </p>
+            </div>
+            <div>
+              <label htmlFor="stocks" className={labelClass}>Stocks (₹) *</label>
+              <input
+                type="number"
+                id="stocks"
+                value={stockValue ?? ""}
+                onChange={(e) => setStockValue(e.target.value ? parseFloat(e.target.value) : null)}
+                placeholder="Total portfolio value"
+                min={0}
+                className={inputClass}
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="mutual_funds" className={labelClass}>Mutual Funds (₹) *</label>
+              <input
+                type="number"
+                id="mutual_funds"
+                value={mutualFundValue ?? ""}
+                onChange={(e) => setMutualFundValue(e.target.value ? parseFloat(e.target.value) : null)}
+                placeholder="Total MF value"
+                min={0}
+                className={inputClass}
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="real_estate" className={labelClass}>Real Estate Value (₹) *</label>
+              <input
+                type="number"
+                id="real_estate"
+                value={realEstateValue ?? ""}
+                onChange={(e) => setRealEstateValue(e.target.value ? parseFloat(e.target.value) : null)}
+                placeholder="Total real estate worth"
+                min={0}
+                className={inputClass}
+                required
+              />
+              <p className="text-xs text-gray-500 mt-1">Exclude this from total savings and enter the full market value here.</p>
+            </div>
+            <div>
+              <label htmlFor="gold_grams" className={labelClass}>Gold Owned (grams) *</label>
+              <input
+                type="number"
+                id="gold_grams"
+                value={goldGrams ?? ""}
+                onChange={(e) => setGoldGrams(e.target.value ? parseFloat(e.target.value) : null)}
+                placeholder="Total grams of gold"
+                min={0}
+                className={inputClass}
+                required
+              />
+              <p className="text-xs text-gray-500 mt-1">Enter only the physical gold quantity. Its rupee value is captured separately below.</p>
+            </div>
+            <div>
+              <label htmlFor="gold_value" className={labelClass}>Gold Value (₹)</label>
               <input
                 type="number"
                 id="gold_value"
-                value={goldValue || ""}
+                value={goldValue ?? ""}
                 onChange={(e) => setGoldValue(e.target.value ? parseFloat(e.target.value) : null)}
-                placeholder="Total gold value"
-                step="0.01"
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label htmlFor="fixed_deposit_total" className={labelClass}>Fixed Deposit Total</label>
-              <input
-                type="number"
-                id="fixed_deposit_total"
-                value={fixedDepositTotal || ""}
-                onChange={(e) => setFixedDepositTotal(e.target.value ? parseFloat(e.target.value) : null)}
-                placeholder="Total FD value"
-                step="0.01"
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label htmlFor="crypto_value_total" className={labelClass}>Crypto Value Total</label>
-              <input
-                type="number"
-                id="crypto_value_total"
-                value={cryptoValueTotal || ""}
-                onChange={(e) => setCryptoValueTotal(e.target.value ? parseFloat(e.target.value) : null)}
-                placeholder="Total crypto value"
-                step="0.01"
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label htmlFor="stock_value_total" className={labelClass}>Stock Value Total</label>
-              <input
-                type="number"
-                id="stock_value_total"
-                value={stockValueTotal || ""}
-                onChange={(e) => setStockValueTotal(e.target.value ? parseFloat(e.target.value) : null)}
-                placeholder="Total stock value"
-                step="0.01"
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label htmlFor="mutual_fund_total" className={labelClass}>Mutual Fund Total</label>
-              <input
-                type="number"
-                id="mutual_fund_total"
-                value={mutualFundTotal || ""}
-                onChange={(e) => setMutualFundTotal(e.target.value ? parseFloat(e.target.value) : null)}
-                placeholder="Total MF value"
-                step="0.01"
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label htmlFor="car_value_total" className={labelClass}>Car Value Total</label>
-              <input
-                type="number"
-                id="car_value_total"
-                value={carValueTotal || ""}
-                onChange={(e) => setCarValueTotal(e.target.value ? parseFloat(e.target.value) : null)}
-                placeholder="Total car value"
-                step="0.01"
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label htmlFor="emi_total" className={labelClass}>EMI Total</label>
-              <input
-                type="number"
-                id="emi_total"
-                value={emiTotal || ""}
-                onChange={(e) => setEmiTotal(e.target.value ? parseFloat(e.target.value) : null)}
-                placeholder="Total monthly EMI"
-                step="0.01"
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label htmlFor="real_estate_total_price" className={labelClass}>Real Estate Total Price</label>
-              <input
-                type="number"
-                id="real_estate_total_price"
-                value={realEstateTotalPrice || ""}
-                onChange={(e) => setRealEstateTotalPrice(e.target.value ? parseFloat(e.target.value) : null)}
-                placeholder="Total property value"
-                step="0.01"
+                placeholder="Estimated market value"
+                min={0}
                 className={inputClass}
               />
             </div>
           </div>
-        </CollapsibleSection>
-
-        {/* Optional Detailed Breakdown */}
-        <CollapsibleSection title="Detailed Breakdown" icon={<Layers className="w-5 h-5" />}>
-          <div className="space-y-6">
-            {/* Stocks */}
-            <CategoryRow
-              items={stocks}
-              {...createCategoryHandlers(stocks, setStocks)}
-              namePlaceholder="Stock Name"
-              valuePlaceholder="Portfolio Value"
-              title="Stocks"
+          <div className="mt-4">
+            <label htmlFor="notes" className={labelClass}>Additional Notes</label>
+            <textarea
+              id="notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Goals, risk appetite, or anything else you want considered."
+              className={`${inputClass} min-h-[110px]`}
             />
-
-            {/* Mutual Funds */}
-            <CategoryRow
-              items={mutualFunds}
-              {...createCategoryHandlers(mutualFunds, setMutualFunds)}
-              namePlaceholder="Fund Name"
-              valuePlaceholder="Amount Invested"
-              title="Mutual Funds"
-            />
-
-            {/* Cars */}
-            <CategoryRow
-              items={cars}
-              {...createCategoryHandlers(cars, setCars)}
-              namePlaceholder="Car Model"
-              valuePlaceholder="Market Value"
-              title="Cars"
-            />
-
-            {/* EMIs */}
-            <CategoryRow
-              items={emis}
-              {...createCategoryHandlers(emis, setEmis)}
-              namePlaceholder="EMI Name"
-              valuePlaceholder="Monthly Amount"
-              title="EMIs"
-            />
-
-            {/* Real Estate */}
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-800">Real Estate</h3>
-                <button
-                  type="button"
-                  onClick={addRealEstate}
-                  className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-sm"
-                >
-                  + Add Property
-                </button>
-              </div>
-              <div className="space-y-3">
-                {realEstate.length === 0 ? (
-                  <p className="text-sm text-gray-500 italic">No properties added yet</p>
-                ) : (
-                  realEstate.map((property, index) => (
-                    <div key={index} className="flex gap-3 items-end">
-                      <div className="flex-1">
-                        <label className={labelClass}>Location</label>
-                        <input
-                          type="text"
-                          placeholder="Property location"
-                          value={property.location}
-                          onChange={(e) => updateRealEstate(index, "location", e.target.value)}
-                          className={inputClass}
-                        />
-                      </div>
-                      <div className="w-40">
-                        <label className={labelClass}>Price</label>
-                        <input
-                          type="number"
-                          placeholder="Property value"
-                          value={property.price || ""}
-                          onChange={(e) => updateRealEstate(index, "price", parseFloat(e.target.value) || 0)}
-                          step="0.01"
-                          className={inputClass}
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeRealEstate(index)}
-                        className="px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors mb-0.5"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
           </div>
         </CollapsibleSection>
 
-        {/* Additional Custom Metrics */}
-        <CollapsibleSection title="Custom Metrics" icon={<BarChart className="w-5 h-5" />}>
-          <div className="space-y-3">
-            {dynamicFields.map((field, index) => (
-              <div key={index} className="flex gap-3 items-center">
-                <input
-                  type="text"
-                  placeholder="Metric name (e.g., debt, insurance)"
-                  value={field.key}
-                  onChange={(e) => updateField(index, "key", e.target.value)}
-                  className={`flex-1 ${inputClass}`}
-                />
-                <input
-                  type="number"
-                  placeholder="Value"
-                  value={field.value || ""}
-                  onChange={(e) => updateField(index, "value", parseFloat(e.target.value) || 0)}
-                  step="0.01"
-                  className={`w-32 ${inputClass}`}
-                />
-                <button
-                  type="button"
-                  onClick={() => removeField(index)}
-                  disabled={dynamicFields.length === 1}
-                  className="px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={addField}
-              className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-sm w-full md:w-auto"
-            >
-              Add Field
-            </button>
-          </div>
-        </CollapsibleSection>
-
-        {/* Message */}
         {message && (
           <div
             className={`p-4 rounded-md ${
@@ -511,13 +415,12 @@ export default function DynamicInputForm() {
           </div>
         )}
 
-        {/* Submit Button */}
         <button
           type="submit"
           disabled={isSubmitting}
           className="w-full md:w-auto px-6 py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-semibold"
         >
-          {isSubmitting ? "Submitting..." : "Submit Data"}
+          {isSubmitting ? "Submitting..." : "Submit Anonymously"}
         </button>
       </form>
     </div>
