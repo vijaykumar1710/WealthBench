@@ -56,13 +56,6 @@ export async function GET(request: NextRequest) {
       "income",
       "savings",
       "expenses",
-      "emi",
-      "gold",
-      "fixed_deposit",
-      "car_value",
-      "stock_value",
-      "crypto_value",
-      "real_estate_price",
     ];
 
     for (const sub of submissions) {

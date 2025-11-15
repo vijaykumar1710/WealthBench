@@ -19,6 +19,7 @@ export default function ResultPage() {
   const [rankings, setRankings] = useState<RankingResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [breakdown, setBreakdown] = useState<any>(null);
 
   useEffect(() => {
     const fetchRankings = async () => {
@@ -39,7 +40,9 @@ export default function ResultPage() {
           { metric: "expenses", value: searchParams.get("expenses") },
           { metric: "net_worth", value: searchParams.get("net_worth") },
           { metric: "investment_value", value: searchParams.get("investment_value") },
-          { metric: "real_estate_total", value: searchParams.get("real_estate_total") },
+          { metric: "stock_value_total", value: searchParams.get("stock_value_total") },
+          { metric: "mutual_fund_total", value: searchParams.get("mutual_fund_total") },
+          { metric: "real_estate_total_price", value: searchParams.get("real_estate_total_price") },
         ].filter(m => m.value);
 
         if (metricsToRank.length === 0) {
@@ -63,6 +66,20 @@ export default function ResultPage() {
 
         const results = (await Promise.all(rankingPromises)).filter((r) => r !== null);
         setRankings(results as RankingResult[]);
+
+        // Try to get breakdown data from URL params or localStorage
+        // For now, we'll show a placeholder - in production, fetch from API
+        const breakdownData = {
+          stocks: searchParams.get("stocks") ? JSON.parse(searchParams.get("stocks")!) : null,
+          mutual_funds: searchParams.get("mutual_funds") ? JSON.parse(searchParams.get("mutual_funds")!) : null,
+          cars: searchParams.get("cars") ? JSON.parse(searchParams.get("cars")!) : null,
+          emis: searchParams.get("emis") ? JSON.parse(searchParams.get("emis")!) : null,
+          real_estate: searchParams.get("real_estate") ? JSON.parse(searchParams.get("real_estate")!) : null,
+        };
+        
+        if (Object.values(breakdownData).some(v => v !== null)) {
+          setBreakdown(breakdownData);
+        }
       } catch (err) {
         setError("Failed to load rankings. Please try again later.");
         console.error("Error fetching rankings:", err);
@@ -146,46 +163,122 @@ export default function ResultPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {rankings.map((ranking) => (
-              <div key={ranking.metric} className="rounded-xl border p-6 shadow-sm bg-white">
-                <h3 className="text-xl font-bold mb-4 capitalize">{formatMetricName(ranking.metric)}</h3>
-                <div className="space-y-4 border-t border-gray-200 pt-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Your Value:</span>
-                    <span className="font-semibold text-gray-800">
-                      {ranking.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                    </span>
-                  </div>
-                  
-                  <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {rankings.map((ranking) => (
+                <div key={ranking.metric} className="rounded-xl border p-6 shadow-sm bg-white">
+                  <h3 className="text-xl font-bold mb-4 capitalize">{formatMetricName(ranking.metric)}</h3>
+                  <div className="space-y-4 border-t border-gray-200 pt-4">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Global Rank:</span>
-                      <span className={`font-semibold ${getRankColor(ranking.global_rank)}`}>
-                        {formatPercentile(ranking.global_rank)}
+                      <span className="text-sm text-gray-600">Your Value:</span>
+                      <span className="font-semibold text-gray-800">
+                        {ranking.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                       </span>
                     </div>
-                    {ranking.region_rank !== null && (
+                    
+                    <div className="bg-gray-50 rounded-lg p-4 space-y-2">
                       <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Regional Rank:</span>
-                        <span className={`font-medium ${getRankColor(ranking.region_rank)}`}>
-                          {formatPercentile(ranking.region_rank)}
+                        <span className="text-sm text-gray-600">Global Rank:</span>
+                        <span className={`font-semibold ${getRankColor(ranking.global_rank)}`}>
+                          {formatPercentile(ranking.global_rank)}
                         </span>
                       </div>
-                    )}
-                    {ranking.bracket_rank !== null && (
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Income Bracket Rank:</span>
-                        <span className={`font-medium ${getRankColor(ranking.bracket_rank)}`}>
-                          {formatPercentile(ranking.bracket_rank)}
-                        </span>
-                      </div>
-                    )}
+                      {ranking.region_rank !== null && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Regional Rank:</span>
+                          <span className={`font-medium ${getRankColor(ranking.region_rank)}`}>
+                            {formatPercentile(ranking.region_rank)}
+                          </span>
+                        </div>
+                      )}
+                      {ranking.bracket_rank !== null && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Income Bracket Rank:</span>
+                          <span className={`font-medium ${getRankColor(ranking.bracket_rank)}`}>
+                            {formatPercentile(ranking.bracket_rank)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
+              ))}
+            </div>
+
+            {/* Breakdown Summary */}
+            {breakdown && (
+              <div className="rounded-xl border p-6 shadow-sm bg-white">
+                <h2 className="text-2xl font-semibold mb-4">Breakdown Summary</h2>
+                <div className="space-y-4">
+                  {breakdown.stocks && breakdown.stocks.length > 0 && (
+                    <div>
+                      <h3 className="font-semibold text-gray-800 mb-2">Stocks</h3>
+                      <div className="space-y-1">
+                        {breakdown.stocks.map((stock: any, idx: number) => (
+                          <div key={idx} className="flex justify-between text-sm">
+                            <span className="text-gray-600">{stock.name}</span>
+                            <span className="font-medium">{stock.value.toLocaleString()}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {breakdown.mutual_funds && breakdown.mutual_funds.length > 0 && (
+                    <div>
+                      <h3 className="font-semibold text-gray-800 mb-2">Mutual Funds</h3>
+                      <div className="space-y-1">
+                        {breakdown.mutual_funds.map((fund: any, idx: number) => (
+                          <div key={idx} className="flex justify-between text-sm">
+                            <span className="text-gray-600">{fund.name}</span>
+                            <span className="font-medium">{fund.value.toLocaleString()}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {breakdown.cars && breakdown.cars.length > 0 && (
+                    <div>
+                      <h3 className="font-semibold text-gray-800 mb-2">Cars</h3>
+                      <div className="space-y-1">
+                        {breakdown.cars.map((car: any, idx: number) => (
+                          <div key={idx} className="flex justify-between text-sm">
+                            <span className="text-gray-600">{car.name}</span>
+                            <span className="font-medium">{car.value.toLocaleString()}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {breakdown.emis && breakdown.emis.length > 0 && (
+                    <div>
+                      <h3 className="font-semibold text-gray-800 mb-2">EMIs</h3>
+                      <div className="space-y-1">
+                        {breakdown.emis.map((emi: any, idx: number) => (
+                          <div key={idx} className="flex justify-between text-sm">
+                            <span className="text-gray-600">{emi.name}</span>
+                            <span className="font-medium">{emi.value.toLocaleString()}/month</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {breakdown.real_estate && breakdown.real_estate.length > 0 && (
+                    <div>
+                      <h3 className="font-semibold text-gray-800 mb-2">Real Estate</h3>
+                      <div className="space-y-1">
+                        {breakdown.real_estate.map((prop: any, idx: number) => (
+                          <div key={idx} className="flex justify-between text-sm">
+                            <span className="text-gray-600">{prop.location}</span>
+                            <span className="font-medium">{prop.price.toLocaleString()}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
 
         <div className="flex gap-4 pt-6">

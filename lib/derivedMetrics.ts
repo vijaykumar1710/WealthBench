@@ -1,9 +1,10 @@
-import { DynamicField, RequiredFixed, OptionalAssets } from "@/types/submission";
+import { DynamicField, RequiredFixed, OptionalAggregates, OptionalBreakdown } from "@/types/submission";
 
 export function calculateDerivedMetrics(
   requiredFixed: RequiredFixed,
-  optionalAssets: OptionalAssets,
-  dynamic: DynamicField[]
+  optionalAggregates?: OptionalAggregates,
+  optionalBreakdown?: OptionalBreakdown,
+  dynamic: DynamicField[] = []
 ): DynamicField[] {
   const result: DynamicField[] = [];
   
@@ -15,17 +16,26 @@ export function calculateDerivedMetrics(
   const expenses = requiredFixed.expenses;
   const debt = findDynamic("debt"); // debt is typically dynamic
 
-  // Calculate totals from optional assets
-  const stocksTotal = optionalAssets.stocks.reduce((sum, stock) => sum + stock.value, 0);
-  const mutualFundsTotal = optionalAssets.mutual_funds.reduce((sum, fund) => sum + fund.value, 0);
-  const carsTotal = optionalAssets.cars.reduce((sum, car) => sum + car.value, 0);
-  const emisTotal = optionalAssets.emis.reduce((sum, emi) => sum + emi.value, 0);
-  const realEstateTotal = optionalAssets.real_estate.reduce((sum, prop) => sum + prop.price, 0);
+  // Calculate totals - use aggregate if provided, otherwise sum breakdown
+  const stockTotal = optionalAggregates?.stock_value_total ?? 
+    (optionalBreakdown?.stocks?.reduce((sum, stock) => sum + stock.value, 0) || 0);
+  
+  const mutualFundTotal = optionalAggregates?.mutual_fund_total ?? 
+    (optionalBreakdown?.mutual_funds?.reduce((sum, fund) => sum + fund.value, 0) || 0);
+  
+  const carTotal = optionalAggregates?.car_value_total ?? 
+    (optionalBreakdown?.cars?.reduce((sum, car) => sum + car.value, 0) || 0);
+  
+  const emiTotal = optionalAggregates?.emi_total ?? 
+    (optionalBreakdown?.emis?.reduce((sum, emi) => sum + emi.value, 0) || 0);
+  
+  const realEstateTotal = optionalAggregates?.real_estate_total_price ?? 
+    (optionalBreakdown?.real_estate?.reduce((sum, prop) => sum + prop.price, 0) || 0);
 
-  // Get other investments from dynamic fields
-  const gold = findDynamic("gold");
-  const fixedDeposit = findDynamic("fixed_deposit");
-  const cryptoValue = findDynamic("crypto_value");
+  // Get other investments from aggregates or dynamic
+  const goldValue = optionalAggregates?.gold_value ?? findDynamic("gold");
+  const fixedDepositTotal = optionalAggregates?.fixed_deposit_total ?? findDynamic("fixed_deposit");
+  const cryptoValueTotal = optionalAggregates?.crypto_value_total ?? findDynamic("crypto_value");
 
   // Savings rate
   if (income && savings && income > 0) {
@@ -43,17 +53,31 @@ export function calculateDerivedMetrics(
   }
 
   // EMI ratio (total EMIs / income)
-  if (income && emisTotal > 0 && income > 0) {
-    result.push({ key: "emi_ratio", value: emisTotal / income });
+  if (income && emiTotal > 0 && income > 0) {
+    result.push({ key: "emi_ratio", value: emiTotal / income });
   }
 
   // Investment value (sum of stocks + mutual funds + gold + fixed_deposit + crypto)
-  const investmentValue = [stocksTotal, mutualFundsTotal, gold, fixedDeposit, cryptoValue]
+  const investmentValue = [stockTotal, mutualFundTotal, goldValue, fixedDepositTotal, cryptoValueTotal]
     .filter((v) => v !== null && v !== undefined && v > 0)
     .reduce((a, b) => a + b, 0);
   
   if (investmentValue > 0) {
     result.push({ key: "investment_value", value: investmentValue });
+  }
+
+  // Store individual totals if they exist
+  if (stockTotal > 0) {
+    result.push({ key: "stock_value_total", value: stockTotal });
+  }
+  if (mutualFundTotal > 0) {
+    result.push({ key: "mutual_fund_total", value: mutualFundTotal });
+  }
+  if (carTotal > 0) {
+    result.push({ key: "car_value_total", value: carTotal });
+  }
+  if (emiTotal > 0) {
+    result.push({ key: "emi_total", value: emiTotal });
   }
 
   // Real estate total
@@ -64,12 +88,12 @@ export function calculateDerivedMetrics(
   // Net worth calculation
   // Assets: savings + investment_value + real_estate_total + cars
   // Liabilities: debt + emis_total (monthly EMIs converted to annual for comparison)
-  const assets = [savings, investmentValue, realEstateTotal, carsTotal]
+  const assets = [savings, investmentValue, realEstateTotal, carTotal]
     .filter((v) => v !== null && v !== undefined && v > 0)
     .reduce((a, b) => a + b, 0);
   
   // For EMIs, we'll use monthly amount * 12 as annual liability estimate
-  const annualEmis = emisTotal * 12;
+  const annualEmis = emiTotal * 12;
   const liabilities = (debt ?? 0) + annualEmis;
   
   if (assets > 0 || liabilities > 0) {

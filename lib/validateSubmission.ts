@@ -38,41 +38,57 @@ export function validateSubmission(payload: SubmissionPayload): ValidationError[
     });
   }
 
-  // Validate optional assets
-  if (payload.optionalAssets) {
-    // Validate real estate entries
-    payload.optionalAssets.real_estate.forEach((prop, index) => {
-      if (!prop.location || prop.location.trim() === "") {
+  // Validate optional aggregates
+  if (payload.optionalAggregates) {
+    Object.entries(payload.optionalAggregates).forEach(([key, value]) => {
+      if (value !== null && value !== undefined && value < 0) {
         errors.push({
-          field: `optionalAssets.real_estate[${index}].location`,
-          message: "Location is required for real estate",
-        });
-      }
-      if (prop.price < 0) {
-        errors.push({
-          field: `optionalAssets.real_estate[${index}].price`,
-          message: "Real estate price cannot be negative",
+          field: `optionalAggregates.${key}`,
+          message: `${key} cannot be negative`,
         });
       }
     });
+  }
 
-    // Validate stocks, mutual funds, cars, EMIs
-    ["stocks", "mutual_funds", "cars", "emis"].forEach((category) => {
-      const items = (payload.optionalAssets as any)[category] || [];
-      items.forEach((item: any, index: number) => {
-        if (!item.name || item.name.trim() === "") {
+  // Validate optional breakdown
+  if (payload.optionalBreakdown) {
+    // Validate real estate entries
+    if (payload.optionalBreakdown.real_estate) {
+      payload.optionalBreakdown.real_estate.forEach((prop, index) => {
+        if (!prop.location || prop.location.trim() === "") {
           errors.push({
-            field: `optionalAssets.${category}[${index}].name`,
-            message: `${category} name is required`,
+            field: `optionalBreakdown.real_estate[${index}].location`,
+            message: "Location is required for real estate",
           });
         }
-        if (item.value < 0) {
+        if (prop.price < 0) {
           errors.push({
-            field: `optionalAssets.${category}[${index}].value`,
-            message: `${category} value cannot be negative`,
+            field: `optionalBreakdown.real_estate[${index}].price`,
+            message: "Real estate price cannot be negative",
           });
         }
       });
+    }
+
+    // Validate stocks, mutual funds, cars, EMIs
+    ["stocks", "mutual_funds", "cars", "emis"].forEach((category) => {
+      const items = (payload.optionalBreakdown as any)[category];
+      if (items) {
+        items.forEach((item: any, index: number) => {
+          if (!item.name || item.name.trim() === "") {
+            errors.push({
+              field: `optionalBreakdown.${category}[${index}].name`,
+              message: `${category} name is required`,
+            });
+          }
+          if (item.value < 0) {
+            errors.push({
+              field: `optionalBreakdown.${category}[${index}].value`,
+              message: `${category} value cannot be negative`,
+            });
+          }
+        });
+      }
     });
   }
 
