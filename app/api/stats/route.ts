@@ -9,11 +9,18 @@ export async function GET(request: NextRequest) {
     const ageRange = searchParams.get("age_range");
     const region = searchParams.get("region");
     const incomeBracket = searchParams.get("income_bracket");
+    const metric = searchParams.get("metric");
+    const value = searchParams.get("value");
+
+    // If ranking is requested
+    if (metric && value) {
+      return await calculateRanking(metric, parseFloat(value), region || undefined, incomeBracket || undefined);
+    }
 
     // Build filter conditions for submissions
     let submissionsQuery = supabaseServer
       .from("submissions")
-      .select("id");
+      .select("*");
 
     if (ageRange) {
       submissionsQuery = submissionsQuery.eq("age_range", ageRange);
@@ -43,6 +50,33 @@ export async function GET(request: NextRequest) {
 
     const submissionIds = submissions.map((s) => s.id);
 
+    // Get fixed fields from submissions table
+    const fixedFieldsMap: Record<string, number[]> = {};
+    const fixedFieldKeys = [
+      "income",
+      "savings",
+      "expenses",
+      "emi",
+      "gold",
+      "fixed_deposit",
+      "car_value",
+      "stock_value",
+      "crypto_value",
+      "real_estate_price",
+    ];
+
+    for (const sub of submissions) {
+      for (const key of fixedFieldKeys) {
+        const value = (sub as any)[key];
+        if (value !== null && value !== undefined) {
+          if (!fixedFieldsMap[key]) {
+            fixedFieldsMap[key] = [];
+          }
+          fixedFieldsMap[key].push(value);
+        }
+      }
+    }
+
     // Get all submission_values for these submissions
     const { data: values, error: valuesError } = await supabaseServer
       .from("submission_values")
@@ -69,8 +103,9 @@ export async function GET(request: NextRequest) {
       { sample_size: number; avg: number; p25: number; median: number; p75: number }
     > = {};
 
-    const groupedByKey: Record<string, number[]> = {};
-    for (const item of values) {
+    // Merge fixed fields and dynamic values
+    const groupedByKey: Record<string, number[]> = { ...fixedFieldsMap };
+    for (const item of values || []) {
       if (!groupedByKey[item.key]) {
         groupedByKey[item.key] = [];
       }
@@ -102,6 +137,116 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     logger.error("GET /api/stats - Error:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error occurred",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+async function calculateRanking(
+  metric: string,
+  value: number,
+  region?: string,
+  incomeBracket?: string
+) {
+  try {
+    // Get all submissions for global ranking
+    const { data: allSubmissions } = await supabaseServer
+      .from("submissions")
+      .select("id, region, income_bracket");
+
+    // Get region-specific submissions
+    let regionSubmissions = allSubmissions;
+    if (region) {
+      regionSubmissions = allSubmissions?.filter((s) => s.region === region) || [];
+    }
+
+    // Get bracket-specific submissions
+    let bracketSubmissions = allSubmissions;
+    if (incomeBracket) {
+      bracketSubmissions = allSubmissions?.filter((s) => s.income_bracket === incomeBracket) || [];
+    }
+
+    // Helper to get values for a metric from submissions
+    const getMetricValues = async (submissionIds: string[]) => {
+      const fixedFieldKeys: Record<string, string> = {
+        income: "income",
+        savings: "savings",
+        expenses: "expenses",
+        emi: "emi",
+        gold: "gold",
+        fixed_deposit: "fixed_deposit",
+        car_value: "car_value",
+        stock_value: "stock_value",
+        crypto_value: "crypto_value",
+        real_estate_price: "real_estate_price",
+      };
+
+      const values: number[] = [];
+
+      // Check if it's a fixed field
+      if (fixedFieldKeys[metric]) {
+        const { data: subs } = await supabaseServer
+          .from("submissions")
+          .select(fixedFieldKeys[metric])
+          .in("id", submissionIds);
+        
+        for (const sub of subs || []) {
+          const val = (sub as any)[fixedFieldKeys[metric]];
+          if (val !== null && val !== undefined) {
+            values.push(val);
+          }
+        }
+      } else {
+        // Get from submission_values
+        const { data: vals } = await supabaseServer
+          .from("submission_values")
+          .select("value")
+          .in("submission_id", submissionIds)
+          .eq("key", metric);
+        
+        for (const v of vals || []) {
+          values.push(v.value);
+        }
+      }
+
+      return values;
+    };
+
+    // Calculate percentile rank
+    const calculatePercentile = (values: number[], targetValue: number): number => {
+      if (values.length === 0) return 0;
+      const sorted = [...values].sort((a, b) => a - b);
+      const belowCount = sorted.filter((v) => v < targetValue).length;
+      return (belowCount / sorted.length) * 100;
+    };
+
+    const allIds = allSubmissions?.map((s) => s.id) || [];
+    const regionIds = regionSubmissions.map((s) => s.id);
+    const bracketIds = bracketSubmissions.map((s) => s.id);
+
+    const globalValues = await getMetricValues(allIds);
+    const regionValues = region ? await getMetricValues(regionIds) : globalValues;
+    const bracketValues = incomeBracket ? await getMetricValues(bracketIds) : globalValues;
+
+    const globalRank = calculatePercentile(globalValues, value);
+    const regionRank = calculatePercentile(regionValues, value);
+    const bracketRank = calculatePercentile(bracketValues, value);
+
+    return NextResponse.json({
+      metric,
+      value,
+      percentile_rank: Math.round(globalRank * 100) / 100,
+      region_rank: region ? Math.round(regionRank * 100) / 100 : null,
+      bracket_rank: incomeBracket ? Math.round(bracketRank * 100) / 100 : null,
+      global_rank: Math.round(globalRank * 100) / 100,
+    });
+  } catch (error) {
+    logger.error("GET /api/stats - Ranking error:", error);
     return NextResponse.json(
       {
         success: false,
