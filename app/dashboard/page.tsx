@@ -41,7 +41,7 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <main className="min-h-screen p-6">
+      <main className="min-h-screen p-6 bg-white">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-4xl font-bold mb-8">WealthBench Dashboard</h1>
           <div className="flex items-center justify-center py-20">
@@ -54,11 +54,13 @@ export default function Dashboard() {
 
   if (error) {
     return (
-      <main className="min-h-screen p-6">
+      <main className="min-h-screen p-6 bg-white">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-4xl font-bold mb-8">WealthBench Dashboard</h1>
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-            {error}
+          <div className="rounded-xl border p-4 shadow-sm bg-white">
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+              {error}
+            </div>
           </div>
         </div>
       </main>
@@ -69,13 +71,13 @@ export default function Dashboard() {
   const metricKeys = Object.keys(metrics);
 
   return (
-    <main className="min-h-screen p-6 bg-gray-50">
+    <main className="min-h-screen p-6 bg-white">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-4xl font-bold mb-2">WealthBench Dashboard</h1>
         <p className="text-gray-600 mb-8">Aggregated financial benchmarks from anonymous submissions</p>
 
         {metricKeys.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-md p-8 text-center">
+          <div className="rounded-xl border p-4 shadow-sm bg-white text-center">
             <p className="text-gray-600 text-lg">
               No statistics available yet. Be the first to submit data!
             </p>

@@ -16,7 +16,7 @@ export default function MetricCard({
   p75,
 }: MetricCardProps) {
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200 hover:shadow-lg transition-shadow">
+    <div className="rounded-xl border p-4 shadow-sm bg-white">
       <h3 className="text-xl font-bold text-gray-800 mb-4 capitalize">{title}</h3>
       <div className="border-t border-gray-200 pt-4 space-y-3">
         <div className="flex justify-between items-center">
