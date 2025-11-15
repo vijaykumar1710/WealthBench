@@ -112,10 +112,26 @@ export async function POST(request: NextRequest) {
     }
 
     logger.info("POST /api/submit - Success, submission_id:", submissionId);
+    
+    // Build redirect URL with key values for ranking
+    const redirectParams = new URLSearchParams({
+      submission_id: submissionId,
+    });
+    if (body.fixed.region) redirectParams.append("region", body.fixed.region);
+    if (body.fixed.income_bracket) redirectParams.append("income_bracket", body.fixed.income_bracket);
+    if (body.fixed.income) redirectParams.append("income", String(body.fixed.income));
+    if (body.fixed.savings) redirectParams.append("savings", String(body.fixed.savings));
+    if (body.fixed.expenses) redirectParams.append("expenses", String(body.fixed.expenses));
+    
+    // Add net_worth if calculated
+    const netWorth = derivedMetrics.find(m => m.key === "net_worth");
+    if (netWorth) redirectParams.append("net_worth", String(netWorth.value));
+    
     return NextResponse.json({
       success: true,
       submission_id: submissionId,
       derived_metrics: derivedMetrics.map((m) => m.key),
+      redirect_url: `/result?${redirectParams.toString()}`,
     });
   } catch (error) {
     logger.error("POST /api/submit - Error:", error);

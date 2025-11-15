@@ -30,30 +30,38 @@ export default function ResultPage() {
       }
 
       try {
-        // Fetch submission data first to get values
-        const submissionResponse = await fetch(`/api/submission/${submissionId}`);
-        if (!submissionResponse.ok) {
-          // If we don't have a submission endpoint, we'll use mock data or skip
-          setError("Could not fetch submission data");
+        // For now, we'll fetch rankings for common metrics
+        // In a full implementation, you'd fetch the submission data first
+        // For demo purposes, we'll show a message that rankings are being calculated
+        
+        // Get region and income_bracket from URL params if available
+        const region = searchParams.get("region") || "";
+        const incomeBracket = searchParams.get("income_bracket") || "";
+        
+        // Fetch rankings for key metrics - using example values for demo
+        // In production, fetch actual submission values
+        const metricsToRank = [
+          { metric: "income", value: searchParams.get("income") },
+          { metric: "savings", value: searchParams.get("savings") },
+          { metric: "expenses", value: searchParams.get("expenses") },
+          { metric: "net_worth", value: searchParams.get("net_worth") },
+        ].filter(m => m.value);
+
+        if (metricsToRank.length === 0) {
+          setError("No metric values provided. Rankings will be available after more data is collected.");
           setLoading(false);
           return;
         }
 
-        const subData = await submissionResponse.json();
-        setSubmissionData(subData);
-
-        // Fetch rankings for key metrics
-        const metricsToRank = ["income", "savings", "expenses", "net_worth"];
-        const rankingPromises = metricsToRank.map(async (metric) => {
-          const value = getMetricValue(subData, metric);
+        const rankingPromises = metricsToRank.map(async ({ metric, value }) => {
           if (!value) return null;
 
           const response = await fetch(
-            `/api/stats?metric=${metric}&value=${value}&region=${subData.region || ""}&income_bracket=${subData.income_bracket || ""}`
+            `/api/stats?metric=${metric}&value=${parseFloat(value)}&region=${region}&income_bracket=${incomeBracket}`
           );
           if (response.ok) {
             const data = await response.json();
-            return { ...data, metric };
+            return { ...data, metric, value: parseFloat(value) };
           }
           return null;
         });
@@ -69,20 +77,8 @@ export default function ResultPage() {
     };
 
     fetchRankings();
-  }, [submissionId]);
+  }, [submissionId, searchParams]);
 
-  const getMetricValue = (data: any, metric: string): number | null => {
-    // Check fixed fields first
-    if (data.fixed && data.fixed[metric] !== null && data.fixed[metric] !== undefined) {
-      return data.fixed[metric];
-    }
-    // Check dynamic fields
-    if (data.dynamic) {
-      const field = data.dynamic.find((d: any) => d.key === metric);
-      return field ? field.value : null;
-    }
-    return null;
-  };
 
   const formatPercentile = (rank: number): string => {
     if (rank >= 90) return `top ${(100 - rank).toFixed(1)}%`;

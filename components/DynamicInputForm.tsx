@@ -97,8 +97,12 @@ export default function DynamicInputForm() {
       const data = await response.json();
 
       if (data.success) {
-        // Redirect to result page
-        router.push(`/result?submission_id=${data.submission_id}`);
+        // Redirect to result page with all necessary params
+        if (data.redirect_url) {
+          router.push(data.redirect_url);
+        } else {
+          router.push(`/result?submission_id=${data.submission_id}`);
+        }
       } else {
         setMessage({ type: "error", text: data.error || "Submission failed. Please try again." });
         setIsSubmitting(false);
