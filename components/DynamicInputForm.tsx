@@ -121,7 +121,7 @@ export default function DynamicInputForm() {
     const payload: SubmissionPayload = {
       fixed: {
         age_range: ageRange || null,
-        region: region || null,
+        location: region || null,
         income_bracket: incomeBracket || null,
       },
       requiredFixed: {
