@@ -10,7 +10,8 @@
 }
 
 html, body {
-  @apply bg-gray-50 text-gray-900;
+  background-color: #f9fafb; /* Equivalent to bg-gray-50 */
+  color: #111827; /* Equivalent to text-gray-900 */
   font-family: system-ui, sans-serif;
 }
 
@@ -25,11 +26,14 @@ html, body {
 .wb-section-title {
   font-size: var(--wb-font-title);
   font-weight: 600;
-  @apply text-gray-800 mb-3 flex items-center gap-2;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #1f2937; /* text-gray-800 */
 }
 
 .wb-section-subtitle {
   font-size: var(--wb-font-subtitle);
-  @apply text-gray-600;
+  color: #4b5563; /* text-gray-600 */
 }
-
