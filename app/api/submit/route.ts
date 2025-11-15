@@ -5,6 +5,14 @@ import { calculateDerivedMetrics } from "@/lib/derivedMetrics";
 import { validateSubmission } from "@/lib/validateSubmission";
 import { logger } from "@/lib/logger";
 
+// Helper to slugify names for keys
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 export async function POST(request: NextRequest) {
   try {
     logger.info("POST /api/submit - Incoming request");
@@ -20,41 +28,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Filter out fixed fields from dynamic fields to avoid duplicates
-    const fixedFieldKeys = [
-      "income",
-      "savings",
-      "expenses",
-      "emi",
-      "gold",
-      "fixed_deposit",
-      "car_value",
-      "stock_value",
-      "crypto_value",
-      "real_estate_price",
-    ];
-    const filteredDynamic = body.dynamic.filter(
-      (field) => !fixedFieldKeys.includes(field.key.toLowerCase())
-    );
-
-    // Insert into submissions table with all fixed fields
+    // Insert into submissions table with required fixed fields
     const { data: submission, error: submissionError } = await supabaseServer
       .from("submissions")
       .insert({
         age_range: body.fixed.age_range,
         region: body.fixed.region,
         income_bracket: body.fixed.income_bracket,
-        income: body.fixed.income,
-        savings: body.fixed.savings,
-        expenses: body.fixed.expenses,
-        emi: body.fixed.emi,
-        gold: body.fixed.gold,
-        fixed_deposit: body.fixed.fixed_deposit,
-        car_value: body.fixed.car_value,
-        stock_value: body.fixed.stock_value,
-        crypto_value: body.fixed.crypto_value,
-        real_estate_region: body.fixed.real_estate_region,
-        real_estate_price: body.fixed.real_estate_price,
+        income: body.requiredFixed.income,
+        savings: body.requiredFixed.savings,
+        expenses: body.requiredFixed.expenses,
       })
       .select()
       .single();
@@ -67,29 +50,80 @@ export async function POST(request: NextRequest) {
     }
 
     const submissionId = submission.id;
+    const valuesToInsert: Array<{ submission_id: string; key: string; value: number }> = [];
 
-    // Insert filtered dynamic fields (excluding fixed fields)
-    if (filteredDynamic.length > 0) {
-      const dynamicFields = filteredDynamic.map((field) => ({
+    // Store optional assets as namespaced keys
+    // Real Estate - store location in key, price as value
+    body.optionalAssets.real_estate.forEach((property, index) => {
+      valuesToInsert.push({
+        submission_id: submissionId,
+        key: `real_estate:${index}:${slugify(property.location)}:price`,
+        value: property.price,
+      });
+    });
+
+    // Stocks
+    body.optionalAssets.stocks.forEach((stock) => {
+      valuesToInsert.push({
+        submission_id: submissionId,
+        key: `stocks:${slugify(stock.name)}:value`,
+        value: stock.value,
+      });
+    });
+
+    // Mutual Funds
+    body.optionalAssets.mutual_funds.forEach((fund) => {
+      valuesToInsert.push({
+        submission_id: submissionId,
+        key: `mutual_funds:${slugify(fund.name)}:value`,
+        value: fund.value,
+      });
+    });
+
+    // Cars
+    body.optionalAssets.cars.forEach((car) => {
+      valuesToInsert.push({
+        submission_id: submissionId,
+        key: `cars:${slugify(car.name)}:value`,
+        value: car.value,
+      });
+    });
+
+    // EMIs
+    body.optionalAssets.emis.forEach((emi) => {
+      valuesToInsert.push({
+        submission_id: submissionId,
+        key: `emis:${slugify(emi.name)}:value`,
+        value: emi.value,
+      });
+    });
+
+    // Insert dynamic fields
+    body.dynamic.forEach((field) => {
+      valuesToInsert.push({
         submission_id: submissionId,
         key: field.key,
         value: field.value,
-      }));
+      });
+    });
 
-      const { error: dynamicError } = await supabaseServer
+    // Insert all values at once
+    if (valuesToInsert.length > 0) {
+      const { error: valuesError } = await supabaseServer
         .from("submission_values")
-        .insert(dynamicFields);
+        .insert(valuesToInsert);
 
-      if (dynamicError) {
+      if (valuesError) {
         return NextResponse.json(
-          { success: false, error: dynamicError.message },
+          { success: false, error: valuesError.message },
           { status: 500 }
         );
       }
     }
 
-    // Calculate and insert derived metrics using fixed fields and dynamic fields
-    const derivedMetrics = calculateDerivedMetrics(body.fixed, filteredDynamic);
+    // Calculate derived metrics
+    const derivedMetrics = calculateDerivedMetrics(body.requiredFixed, body.optionalAssets, body.dynamic);
+    
     if (derivedMetrics.length > 0) {
       logger.info("POST /api/submit - Derived metrics computed:", derivedMetrics.map(m => m.key));
       const derivedFields = derivedMetrics.map((field) => ({
@@ -119,18 +153,29 @@ export async function POST(request: NextRequest) {
     });
     if (body.fixed.region) redirectParams.append("region", body.fixed.region);
     if (body.fixed.income_bracket) redirectParams.append("income_bracket", body.fixed.income_bracket);
-    if (body.fixed.income) redirectParams.append("income", String(body.fixed.income));
-    if (body.fixed.savings) redirectParams.append("savings", String(body.fixed.savings));
-    if (body.fixed.expenses) redirectParams.append("expenses", String(body.fixed.expenses));
+    redirectParams.append("income", String(body.requiredFixed.income));
+    redirectParams.append("savings", String(body.requiredFixed.savings));
+    redirectParams.append("expenses", String(body.requiredFixed.expenses));
     
-    // Add net_worth if calculated
+    // Add computed metrics
     const netWorth = derivedMetrics.find(m => m.key === "net_worth");
+    const investmentValue = derivedMetrics.find(m => m.key === "investment_value");
+    const realEstateTotal = derivedMetrics.find(m => m.key === "real_estate_total");
+    
     if (netWorth) redirectParams.append("net_worth", String(netWorth.value));
+    if (investmentValue) redirectParams.append("investment_value", String(investmentValue.value));
+    if (realEstateTotal) redirectParams.append("real_estate_total", String(realEstateTotal.value));
+    
+    const computed: Record<string, number> = {};
+    derivedMetrics.forEach((m) => {
+      computed[m.key] = m.value;
+    });
     
     return NextResponse.json({
       success: true,
       submission_id: submissionId,
       derived_metrics: derivedMetrics.map((m) => m.key),
+      computed,
       redirect_url: `/result?${redirectParams.toString()}`,
     });
   } catch (error) {
@@ -144,4 +189,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

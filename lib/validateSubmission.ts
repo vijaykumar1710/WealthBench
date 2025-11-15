@@ -8,17 +8,77 @@ export interface ValidationError {
 export function validateSubmission(payload: SubmissionPayload): ValidationError[] {
   const errors: ValidationError[] = [];
 
-  // Validate dynamic array is not empty
-  if (!payload.dynamic || payload.dynamic.length === 0) {
+  // Validate required fixed fields
+  if (!payload.requiredFixed) {
     errors.push({
-      field: "dynamic",
-      message: "Dynamic fields array cannot be empty",
+      field: "requiredFixed",
+      message: "Required fields (income, savings, expenses) are missing",
     });
-    return errors; // Early return if no dynamic fields
+    return errors;
   }
 
-  // Validate each dynamic field
-  payload.dynamic.forEach((field: DynamicField, index: number) => {
+  if (!payload.requiredFixed.income || payload.requiredFixed.income <= 0) {
+    errors.push({
+      field: "requiredFixed.income",
+      message: "Income must be greater than 0",
+    });
+  }
+
+  if (payload.requiredFixed.savings < 0) {
+    errors.push({
+      field: "requiredFixed.savings",
+      message: "Savings cannot be negative",
+    });
+  }
+
+  if (payload.requiredFixed.expenses < 0) {
+    errors.push({
+      field: "requiredFixed.expenses",
+      message: "Expenses cannot be negative",
+    });
+  }
+
+  // Validate optional assets
+  if (payload.optionalAssets) {
+    // Validate real estate entries
+    payload.optionalAssets.real_estate.forEach((prop, index) => {
+      if (!prop.location || prop.location.trim() === "") {
+        errors.push({
+          field: `optionalAssets.real_estate[${index}].location`,
+          message: "Location is required for real estate",
+        });
+      }
+      if (prop.price < 0) {
+        errors.push({
+          field: `optionalAssets.real_estate[${index}].price`,
+          message: "Real estate price cannot be negative",
+        });
+      }
+    });
+
+    // Validate stocks, mutual funds, cars, EMIs
+    ["stocks", "mutual_funds", "cars", "emis"].forEach((category) => {
+      const items = (payload.optionalAssets as any)[category] || [];
+      items.forEach((item: any, index: number) => {
+        if (!item.name || item.name.trim() === "") {
+          errors.push({
+            field: `optionalAssets.${category}[${index}].name`,
+            message: `${category} name is required`,
+          });
+        }
+        if (item.value < 0) {
+          errors.push({
+            field: `optionalAssets.${category}[${index}].value`,
+            message: `${category} value cannot be negative`,
+          });
+        }
+      });
+    });
+  }
+
+  // Validate dynamic fields
+  if (payload.dynamic) {
+    payload.dynamic.forEach((field: DynamicField, index: number) => {
     // Ensure keys are strings
     if (typeof field.key !== "string" || field.key.trim() === "") {
       errors.push({

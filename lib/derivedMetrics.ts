@@ -1,7 +1,8 @@
-import { DynamicField, FixedFields } from "@/types/submission";
+import { DynamicField, RequiredFixed, OptionalAssets } from "@/types/submission";
 
 export function calculateDerivedMetrics(
-  fixed: FixedFields,
+  requiredFixed: RequiredFixed,
+  optionalAssets: OptionalAssets,
   dynamic: DynamicField[]
 ): DynamicField[] {
   const result: DynamicField[] = [];
@@ -9,17 +10,22 @@ export function calculateDerivedMetrics(
   // Helper to find value from dynamic fields
   const findDynamic = (key: string) => dynamic.find((d) => d.key === key)?.value;
   
-  // Use fixed fields first, fallback to dynamic
-  const income = fixed.income ?? findDynamic("income");
-  const savings = fixed.savings ?? findDynamic("savings");
-  const expenses = fixed.expenses ?? findDynamic("expenses");
-  const emi = fixed.emi ?? findDynamic("emi");
+  const income = requiredFixed.income;
+  const savings = requiredFixed.savings;
+  const expenses = requiredFixed.expenses;
   const debt = findDynamic("debt"); // debt is typically dynamic
-  const gold = fixed.gold ?? findDynamic("gold");
-  const fixedDeposit = fixed.fixed_deposit ?? findDynamic("fixed_deposit");
-  const stockValue = fixed.stock_value ?? findDynamic("stock_value");
-  const cryptoValue = fixed.crypto_value ?? findDynamic("crypto_value");
-  const realEstatePrice = fixed.real_estate_price ?? findDynamic("real_estate_price");
+
+  // Calculate totals from optional assets
+  const stocksTotal = optionalAssets.stocks.reduce((sum, stock) => sum + stock.value, 0);
+  const mutualFundsTotal = optionalAssets.mutual_funds.reduce((sum, fund) => sum + fund.value, 0);
+  const carsTotal = optionalAssets.cars.reduce((sum, car) => sum + car.value, 0);
+  const emisTotal = optionalAssets.emis.reduce((sum, emi) => sum + emi.value, 0);
+  const realEstateTotal = optionalAssets.real_estate.reduce((sum, prop) => sum + prop.price, 0);
+
+  // Get other investments from dynamic fields
+  const gold = findDynamic("gold");
+  const fixedDeposit = findDynamic("fixed_deposit");
+  const cryptoValue = findDynamic("crypto_value");
 
   // Savings rate
   if (income && savings && income > 0) {
@@ -36,26 +42,35 @@ export function calculateDerivedMetrics(
     result.push({ key: "expense_ratio", value: expenses / income });
   }
 
-  // EMI ratio
-  if (income && emi && income > 0) {
-    result.push({ key: "emi_ratio", value: emi / income });
+  // EMI ratio (total EMIs / income)
+  if (income && emisTotal > 0 && income > 0) {
+    result.push({ key: "emi_ratio", value: emisTotal / income });
   }
 
-  // Investment value (sum of all investments)
-  const investmentValue = [gold, fixedDeposit, stockValue, cryptoValue]
-    .filter((v) => v !== null && v !== undefined)
+  // Investment value (sum of stocks + mutual funds + gold + fixed_deposit + crypto)
+  const investmentValue = [stocksTotal, mutualFundsTotal, gold, fixedDeposit, cryptoValue]
+    .filter((v) => v !== null && v !== undefined && v > 0)
     .reduce((a, b) => a + b, 0);
   
   if (investmentValue > 0) {
     result.push({ key: "investment_value", value: investmentValue });
   }
 
+  // Real estate total
+  if (realEstateTotal > 0) {
+    result.push({ key: "real_estate_total", value: realEstateTotal });
+  }
+
   // Net worth calculation
-  const assets = [savings, gold, fixedDeposit, stockValue, cryptoValue, realEstatePrice]
-    .filter((v) => v !== null && v !== undefined)
+  // Assets: savings + investment_value + real_estate_total + cars
+  // Liabilities: debt + emis_total (monthly EMIs converted to annual for comparison)
+  const assets = [savings, investmentValue, realEstateTotal, carsTotal]
+    .filter((v) => v !== null && v !== undefined && v > 0)
     .reduce((a, b) => a + b, 0);
   
-  const liabilities = debt ?? 0;
+  // For EMIs, we'll use monthly amount * 12 as annual liability estimate
+  const annualEmis = emisTotal * 12;
+  const liabilities = (debt ?? 0) + annualEmis;
   
   if (assets > 0 || liabilities > 0) {
     result.push({ key: "net_worth", value: assets - liabilities });
@@ -63,4 +78,3 @@ export function calculateDerivedMetrics(
 
   return result;
 }
-
