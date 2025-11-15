@@ -31,10 +31,10 @@ alter table public.submission_values enable row level security;
 ---------------------------------------------------
 -- Allow anonymous inserts
 create policy "anon_insert_submissions" on public.submissions
-  for insert to anon using (true) with check (true);
+  for insert to anon with check (true);
 
 create policy "anon_insert_submission_values" on public.submission_values
-  for insert to anon using (true) with check (true);
+  for insert to anon with check (true);
 
 ---------------------------------------------------
 -- Deny all selects (privacy locked)
