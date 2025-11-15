@@ -16,8 +16,8 @@ export default function MetricCard({
   p75,
 }: MetricCardProps) {
   return (
-    <div className="rounded-xl border p-4 shadow-sm bg-white">
-      <h3 className="text-xl font-bold text-gray-800 mb-4 capitalize">{title}</h3>
+    <div className="wb-card space-y-4">
+      <h3 className="text-xl font-bold text-gray-800 capitalize">{title}</h3>
       <div className="border-t border-gray-200 pt-4 space-y-3">
         <div className="flex justify-between items-center">
           <span className="text-sm text-gray-600">Sample Size:</span>

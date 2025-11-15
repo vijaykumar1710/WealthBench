@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import PercentileBar from "@/components/PercentileBar";
+import RankBadge from "@/components/RankBadge";
 
 interface RankingResult {
   metric: string;
@@ -67,8 +69,7 @@ export default function ResultPage() {
         const results = (await Promise.all(rankingPromises)).filter((r) => r !== null);
         setRankings(results as RankingResult[]);
 
-        // Try to get breakdown data from URL params or localStorage
-        // For now, we'll show a placeholder - in production, fetch from API
+        // Try to get breakdown data from URL params
         const breakdownData = {
           stocks: searchParams.get("stocks") ? JSON.parse(searchParams.get("stocks")!) : null,
           mutual_funds: searchParams.get("mutual_funds") ? JSON.parse(searchParams.get("mutual_funds")!) : null,
@@ -98,11 +99,14 @@ export default function ResultPage() {
     return `${rank.toFixed(1)}th percentile`;
   };
 
-  const getRankColor = (rank: number): string => {
-    if (rank >= 90) return "text-green-600";
-    if (rank >= 75) return "text-blue-600";
-    if (rank >= 50) return "text-gray-600";
-    return "text-orange-600";
+  const getInsight = (percentile: number): string => {
+    if (percentile >= 70) {
+      return "Great! You're ahead of most people in your region.";
+    } else if (percentile >= 40) {
+      return "You are around the median of your peers.";
+    } else {
+      return "Below average. Improving this metric would have high impact.";
+    }
   };
 
   const formatMetricName = (metric: string): string => {
@@ -114,8 +118,8 @@ export default function ResultPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen p-6 bg-white">
-        <div className="max-w-4xl mx-auto">
+      <main className="min-h-screen p-4 md:p-6 bg-white">
+        <div className="max-w-2xl mx-auto">
           <h1 className="text-4xl font-bold mb-8 bg-gradient-to-r from-blue-600 to-gray-600 bg-clip-text text-transparent">
             Your Financial Ranking
           </h1>
@@ -129,12 +133,12 @@ export default function ResultPage() {
 
   if (error) {
     return (
-      <main className="min-h-screen p-6 bg-white">
-        <div className="max-w-4xl mx-auto">
+      <main className="min-h-screen p-4 md:p-6 bg-white">
+        <div className="max-w-2xl mx-auto">
           <h1 className="text-4xl font-bold mb-8 bg-gradient-to-r from-blue-600 to-gray-600 bg-clip-text text-transparent">
             Your Financial Ranking
           </h1>
-          <div className="rounded-xl border p-4 shadow-sm bg-white">
+          <div className="wb-card">
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
               {error}
             </div>
@@ -148,15 +152,15 @@ export default function ResultPage() {
   }
 
   return (
-    <main className="min-h-screen p-6 bg-white">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <main className="min-h-screen p-4 md:p-6 bg-white">
+      <div className="max-w-2xl mx-auto space-y-section">
         <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-gray-600 bg-clip-text text-transparent">
           Your Financial Ranking
         </h1>
         <p className="text-gray-600">See how you compare to your peers across different financial metrics</p>
 
         {rankings.length === 0 ? (
-          <div className="rounded-xl border p-4 shadow-sm bg-white">
+          <div className="wb-card">
             <p className="text-gray-600">No ranking data available yet.</p>
             <Link href="/dashboard" className="mt-4 inline-block px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">
               View Dashboard
@@ -166,8 +170,8 @@ export default function ResultPage() {
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {rankings.map((ranking) => (
-                <div key={ranking.metric} className="rounded-xl border p-6 shadow-sm bg-white">
-                  <h3 className="text-xl font-bold mb-4 capitalize">{formatMetricName(ranking.metric)}</h3>
+                <div key={ranking.metric} className="wb-card space-y-4">
+                  <h3 className="text-xl font-bold capitalize">{formatMetricName(ranking.metric)}</h3>
                   <div className="space-y-4 border-t border-gray-200 pt-4">
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-600">Your Value:</span>
@@ -176,29 +180,36 @@ export default function ResultPage() {
                       </span>
                     </div>
                     
-                    <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-                      <div className="flex justify-between items-center">
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
                         <span className="text-sm text-gray-600">Global Rank:</span>
-                        <span className={`font-semibold ${getRankColor(ranking.global_rank)}`}>
-                          {formatPercentile(ranking.global_rank)}
-                        </span>
+                        <RankBadge percentile={ranking.global_rank} />
                       </div>
-                      {ranking.region_rank !== null && (
-                        <div className="flex justify-between items-center">
+                      <PercentileBar value={ranking.global_rank} />
+                      <p className="text-xs text-gray-500 mt-1">{formatPercentile(ranking.global_rank)}</p>
+                    </div>
+
+                    {ranking.region_rank !== null && (
+                      <div>
+                        <div className="flex justify-between items-center mb-2">
                           <span className="text-sm text-gray-600">Regional Rank:</span>
-                          <span className={`font-medium ${getRankColor(ranking.region_rank)}`}>
-                            {formatPercentile(ranking.region_rank)}
-                          </span>
+                          <RankBadge percentile={ranking.region_rank} />
                         </div>
-                      )}
-                      {ranking.bracket_rank !== null && (
-                        <div className="flex justify-between items-center">
+                        <PercentileBar value={ranking.region_rank} />
+                      </div>
+                    )}
+                    {ranking.bracket_rank !== null && (
+                      <div>
+                        <div className="flex justify-between items-center mb-2">
                           <span className="text-sm text-gray-600">Income Bracket Rank:</span>
-                          <span className={`font-medium ${getRankColor(ranking.bracket_rank)}`}>
-                            {formatPercentile(ranking.bracket_rank)}
-                          </span>
+                          <RankBadge percentile={ranking.bracket_rank} />
                         </div>
-                      )}
+                        <PercentileBar value={ranking.bracket_rank} />
+                      </div>
+                    )}
+
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
+                      <p className="text-sm text-blue-800">{getInsight(ranking.global_rank)}</p>
                     </div>
                   </div>
                 </div>
@@ -207,8 +218,8 @@ export default function ResultPage() {
 
             {/* Breakdown Summary */}
             {breakdown && (
-              <div className="rounded-xl border p-6 shadow-sm bg-white">
-                <h2 className="text-2xl font-semibold mb-4">Breakdown Summary</h2>
+              <div className="wb-card space-y-4">
+                <h2 className="text-2xl font-semibold">Breakdown Summary</h2>
                 <div className="space-y-4">
                   {breakdown.stocks && breakdown.stocks.length > 0 && (
                     <div>
@@ -281,11 +292,11 @@ export default function ResultPage() {
           </>
         )}
 
-        <div className="flex gap-4 pt-6">
-          <Link href="/" className="px-6 py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-medium">
-            Submit More Data
+        <div className="flex flex-col md:flex-row gap-4 pt-6">
+          <Link href="/" className="w-full md:w-auto px-6 py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-medium text-center">
+            Retake Assessment
           </Link>
-          <Link href="/dashboard" className="px-6 py-3 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium">
+          <Link href="/dashboard" className="w-full md:w-auto px-6 py-3 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 font-medium text-center">
             View Dashboard
           </Link>
         </div>

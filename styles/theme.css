@@ -1,0 +1,35 @@
+:root {
+  --wb-radius: 0.75rem;
+  --wb-padding: 1.25rem;
+  --wb-card-bg: #ffffff;
+  --wb-card-border: #e5e7eb;
+  --wb-font-title: 1.4rem;
+  --wb-font-subtitle: 1.1rem;
+  --wb-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  --wb-section-spacing: 2rem;
+}
+
+html, body {
+  @apply bg-gray-50 text-gray-900;
+  font-family: system-ui, sans-serif;
+}
+
+.wb-card {
+  background: var(--wb-card-bg);
+  border: 1px solid var(--wb-card-border);
+  border-radius: var(--wb-radius);
+  padding: var(--wb-padding);
+  box-shadow: var(--wb-shadow);
+}
+
+.wb-section-title {
+  font-size: var(--wb-font-title);
+  font-weight: 600;
+  @apply text-gray-800 mb-3 flex items-center gap-2;
+}
+
+.wb-section-subtitle {
+  font-size: var(--wb-font-subtitle);
+  @apply text-gray-600;
+}
+

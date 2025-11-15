@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { PieChart, Wallet, Layers, BarChart, User } from "lucide-react";
 import { SubmissionPayload } from "@/types/submission";
 import CategoryRow from "./CategoryRow";
+import CollapsibleSection from "./CollapsibleSection";
 
 export default function DynamicInputForm() {
   const router = useRouter();
@@ -162,368 +164,362 @@ export default function DynamicInputForm() {
     }
   };
 
-  const inputClass = "border rounded-md p-2 w-full text-gray-900 bg-white";
+  const inputClass = "border rounded-md p-3 text-base w-full text-gray-900 bg-white";
   const labelClass = "block text-sm font-medium text-gray-600 mb-1";
-  const sectionClass = "bg-white border rounded-xl shadow-sm p-6";
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Demographics */}
-      <div className={sectionClass}>
-        <h2 className="text-xl font-semibold mb-4">Demographics</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label htmlFor="age_range" className={labelClass}>Age Range</label>
-            <select
-              id="age_range"
-              value={ageRange}
-              onChange={(e) => setAgeRange(e.target.value)}
-              className={inputClass}
-            >
-              <option value="">Select age range</option>
-              <option value="18-24">18-24</option>
-              <option value="25-34">25-34</option>
-              <option value="35-44">35-44</option>
-              <option value="45-54">45-54</option>
-              <option value="55+">55+</option>
-            </select>
-          </div>
-          <div>
-            <label htmlFor="region" className={labelClass}>Region</label>
-            <input
-              type="text"
-              id="region"
-              value={region}
-              onChange={(e) => setRegion(e.target.value)}
-              placeholder="e.g., North, South"
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label htmlFor="income_bracket" className={labelClass}>Income Bracket</label>
-            <select
-              id="income_bracket"
-              value={incomeBracket}
-              onChange={(e) => setIncomeBracket(e.target.value)}
-              className={inputClass}
-            >
-              <option value="">Select income bracket</option>
-              <option value="<50k">&lt;50k</option>
-              <option value="50k-100k">50k-100k</option>
-              <option value="100k-200k">100k-200k</option>
-              <option value="200k+">200k+</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Required Financial Basics */}
-      <div className={sectionClass}>
-        <h2 className="text-xl font-semibold mb-4">Required Financial Basics</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label htmlFor="income" className={labelClass}>Income *</label>
-            <input
-              type="number"
-              id="income"
-              value={income || ""}
-              onChange={(e) => setIncome(parseFloat(e.target.value) || 0)}
-              placeholder="Annual income"
-              step="0.01"
-              required
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label htmlFor="savings" className={labelClass}>Savings *</label>
-            <input
-              type="number"
-              id="savings"
-              value={savings || ""}
-              onChange={(e) => setSavings(parseFloat(e.target.value) || 0)}
-              placeholder="Total savings"
-              step="0.01"
-              required
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label htmlFor="expenses" className={labelClass}>Expenses *</label>
-            <input
-              type="number"
-              id="expenses"
-              value={expenses || ""}
-              onChange={(e) => setExpenses(parseFloat(e.target.value) || 0)}
-              placeholder="Monthly expenses"
-              step="0.01"
-              required
-              className={inputClass}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Optional Aggregate Totals */}
-      <div className={sectionClass}>
-        <h2 className="text-xl font-semibold mb-4">Optional Aggregate Totals</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div>
-            <label htmlFor="gold_value" className={labelClass}>Gold Value</label>
-            <input
-              type="number"
-              id="gold_value"
-              value={goldValue || ""}
-              onChange={(e) => setGoldValue(e.target.value ? parseFloat(e.target.value) : null)}
-              placeholder="Total gold value"
-              step="0.01"
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label htmlFor="fixed_deposit_total" className={labelClass}>Fixed Deposit Total</label>
-            <input
-              type="number"
-              id="fixed_deposit_total"
-              value={fixedDepositTotal || ""}
-              onChange={(e) => setFixedDepositTotal(e.target.value ? parseFloat(e.target.value) : null)}
-              placeholder="Total FD value"
-              step="0.01"
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label htmlFor="crypto_value_total" className={labelClass}>Crypto Value Total</label>
-            <input
-              type="number"
-              id="crypto_value_total"
-              value={cryptoValueTotal || ""}
-              onChange={(e) => setCryptoValueTotal(e.target.value ? parseFloat(e.target.value) : null)}
-              placeholder="Total crypto value"
-              step="0.01"
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label htmlFor="stock_value_total" className={labelClass}>Stock Value Total</label>
-            <input
-              type="number"
-              id="stock_value_total"
-              value={stockValueTotal || ""}
-              onChange={(e) => setStockValueTotal(e.target.value ? parseFloat(e.target.value) : null)}
-              placeholder="Total stock value"
-              step="0.01"
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label htmlFor="mutual_fund_total" className={labelClass}>Mutual Fund Total</label>
-            <input
-              type="number"
-              id="mutual_fund_total"
-              value={mutualFundTotal || ""}
-              onChange={(e) => setMutualFundTotal(e.target.value ? parseFloat(e.target.value) : null)}
-              placeholder="Total MF value"
-              step="0.01"
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label htmlFor="car_value_total" className={labelClass}>Car Value Total</label>
-            <input
-              type="number"
-              id="car_value_total"
-              value={carValueTotal || ""}
-              onChange={(e) => setCarValueTotal(e.target.value ? parseFloat(e.target.value) : null)}
-              placeholder="Total car value"
-              step="0.01"
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label htmlFor="emi_total" className={labelClass}>EMI Total</label>
-            <input
-              type="number"
-              id="emi_total"
-              value={emiTotal || ""}
-              onChange={(e) => setEmiTotal(e.target.value ? parseFloat(e.target.value) : null)}
-              placeholder="Total monthly EMI"
-              step="0.01"
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label htmlFor="real_estate_total_price" className={labelClass}>Real Estate Total Price</label>
-            <input
-              type="number"
-              id="real_estate_total_price"
-              value={realEstateTotalPrice || ""}
-              onChange={(e) => setRealEstateTotalPrice(e.target.value ? parseFloat(e.target.value) : null)}
-              placeholder="Total property value"
-              step="0.01"
-              className={inputClass}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Optional Detailed Breakdown */}
-      <div className={sectionClass}>
-        <h2 className="text-xl font-semibold mb-4">Optional Detailed Breakdown</h2>
-        <div className="space-y-6">
-          {/* Stocks */}
-          <CategoryRow
-            items={stocks}
-            {...createCategoryHandlers(stocks, setStocks)}
-            namePlaceholder="Stock Name"
-            valuePlaceholder="Portfolio Value"
-            title="Stocks"
-          />
-
-          {/* Mutual Funds */}
-          <CategoryRow
-            items={mutualFunds}
-            {...createCategoryHandlers(mutualFunds, setMutualFunds)}
-            namePlaceholder="Fund Name"
-            valuePlaceholder="Amount Invested"
-            title="Mutual Funds"
-          />
-
-          {/* Cars */}
-          <CategoryRow
-            items={cars}
-            {...createCategoryHandlers(cars, setCars)}
-            namePlaceholder="Car Model"
-            valuePlaceholder="Market Value"
-            title="Cars"
-          />
-
-          {/* EMIs */}
-          <CategoryRow
-            items={emis}
-            {...createCategoryHandlers(emis, setEmis)}
-            namePlaceholder="EMI Name"
-            valuePlaceholder="Monthly Amount"
-            title="EMIs"
-          />
-
-          {/* Real Estate */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-800">Real Estate</h3>
-              <button
-                type="button"
-                onClick={addRealEstate}
-                className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-sm"
+    <div className="max-w-2xl mx-auto space-y-section px-4 md:px-0">
+      <form onSubmit={handleSubmit} className="space-y-section">
+        {/* Demographics */}
+        <CollapsibleSection title="Demographics" icon={<User className="w-5 h-5" />} defaultOpen={true}>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label htmlFor="age_range" className={labelClass}>Age Range</label>
+              <select
+                id="age_range"
+                value={ageRange}
+                onChange={(e) => setAgeRange(e.target.value)}
+                className={inputClass}
               >
-                + Add Property
-              </button>
+                <option value="">Select age range</option>
+                <option value="18-24">18-24</option>
+                <option value="25-34">25-34</option>
+                <option value="35-44">35-44</option>
+                <option value="45-54">45-54</option>
+                <option value="55+">55+</option>
+              </select>
             </div>
-            <div className="space-y-3">
-              {realEstate.length === 0 ? (
-                <p className="text-sm text-gray-500 italic">No properties added yet</p>
-              ) : (
-                realEstate.map((property, index) => (
-                  <div key={index} className="flex gap-3 items-end">
-                    <div className="flex-1">
-                      <label className={labelClass}>Location</label>
-                      <input
-                        type="text"
-                        placeholder="Property location"
-                        value={property.location}
-                        onChange={(e) => updateRealEstate(index, "location", e.target.value)}
-                        className={inputClass}
-                      />
-                    </div>
-                    <div className="w-40">
-                      <label className={labelClass}>Price</label>
-                      <input
-                        type="number"
-                        placeholder="Property value"
-                        value={property.price || ""}
-                        onChange={(e) => updateRealEstate(index, "price", parseFloat(e.target.value) || 0)}
-                        step="0.01"
-                        className={inputClass}
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeRealEstate(index)}
-                      className="px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors mb-0.5"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Additional Custom Metrics */}
-      <div className={sectionClass}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">Additional Custom Metrics</h2>
-          <button
-            type="button"
-            onClick={addField}
-            className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-sm"
-          >
-            Add Field
-          </button>
-        </div>
-        <div className="space-y-3">
-          {dynamicFields.map((field, index) => (
-            <div key={index} className="flex gap-3 items-center">
+            <div>
+              <label htmlFor="region" className={labelClass}>Region</label>
               <input
                 type="text"
-                placeholder="Metric name (e.g., debt, insurance)"
-                value={field.key}
-                onChange={(e) => updateField(index, "key", e.target.value)}
-                className={`flex-1 ${inputClass}`}
+                id="region"
+                value={region}
+                onChange={(e) => setRegion(e.target.value)}
+                placeholder="e.g., North, South"
+                className={inputClass}
               />
+            </div>
+            <div>
+              <label htmlFor="income_bracket" className={labelClass}>Income Bracket</label>
+              <select
+                id="income_bracket"
+                value={incomeBracket}
+                onChange={(e) => setIncomeBracket(e.target.value)}
+                className={inputClass}
+              >
+                <option value="">Select income bracket</option>
+                <option value="<50k">&lt;50k</option>
+                <option value="50k-100k">50k-100k</option>
+                <option value="100k-200k">100k-200k</option>
+                <option value="200k+">200k+</option>
+              </select>
+            </div>
+          </div>
+        </CollapsibleSection>
+
+        {/* Required Financial Basics */}
+        <CollapsibleSection title="Required Basics" icon={<PieChart className="w-5 h-5" />} defaultOpen={true}>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label htmlFor="income" className={labelClass}>Income *</label>
               <input
                 type="number"
-                placeholder="Value"
-                value={field.value || ""}
-                onChange={(e) => updateField(index, "value", parseFloat(e.target.value) || 0)}
+                id="income"
+                value={income || ""}
+                onChange={(e) => setIncome(parseFloat(e.target.value) || 0)}
+                placeholder="Annual income"
                 step="0.01"
-                className={`w-32 ${inputClass}`}
+                required
+                className={inputClass}
               />
-              <button
-                type="button"
-                onClick={() => removeField(index)}
-                disabled={dynamicFields.length === 1}
-                className="px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
-              >
-                ×
-              </button>
             </div>
-          ))}
-        </div>
-      </div>
+            <div>
+              <label htmlFor="savings" className={labelClass}>Savings *</label>
+              <input
+                type="number"
+                id="savings"
+                value={savings || ""}
+                onChange={(e) => setSavings(parseFloat(e.target.value) || 0)}
+                placeholder="Total savings"
+                step="0.01"
+                required
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="expenses" className={labelClass}>Expenses *</label>
+              <input
+                type="number"
+                id="expenses"
+                value={expenses || ""}
+                onChange={(e) => setExpenses(parseFloat(e.target.value) || 0)}
+                placeholder="Monthly expenses"
+                step="0.01"
+                required
+                className={inputClass}
+              />
+            </div>
+          </div>
+        </CollapsibleSection>
 
-      {/* Message */}
-      {message && (
-        <div
-          className={`p-4 rounded-md ${
-            message.type === "success"
-              ? "bg-green-100 text-green-800 border border-green-300"
-              : "bg-red-100 text-red-800 border border-red-300"
-          }`}
+        {/* Optional Aggregate Totals */}
+        <CollapsibleSection title="Aggregate Totals" icon={<Wallet className="w-5 h-5" />}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="gold_value" className={labelClass}>Gold Value</label>
+              <input
+                type="number"
+                id="gold_value"
+                value={goldValue || ""}
+                onChange={(e) => setGoldValue(e.target.value ? parseFloat(e.target.value) : null)}
+                placeholder="Total gold value"
+                step="0.01"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="fixed_deposit_total" className={labelClass}>Fixed Deposit Total</label>
+              <input
+                type="number"
+                id="fixed_deposit_total"
+                value={fixedDepositTotal || ""}
+                onChange={(e) => setFixedDepositTotal(e.target.value ? parseFloat(e.target.value) : null)}
+                placeholder="Total FD value"
+                step="0.01"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="crypto_value_total" className={labelClass}>Crypto Value Total</label>
+              <input
+                type="number"
+                id="crypto_value_total"
+                value={cryptoValueTotal || ""}
+                onChange={(e) => setCryptoValueTotal(e.target.value ? parseFloat(e.target.value) : null)}
+                placeholder="Total crypto value"
+                step="0.01"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="stock_value_total" className={labelClass}>Stock Value Total</label>
+              <input
+                type="number"
+                id="stock_value_total"
+                value={stockValueTotal || ""}
+                onChange={(e) => setStockValueTotal(e.target.value ? parseFloat(e.target.value) : null)}
+                placeholder="Total stock value"
+                step="0.01"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="mutual_fund_total" className={labelClass}>Mutual Fund Total</label>
+              <input
+                type="number"
+                id="mutual_fund_total"
+                value={mutualFundTotal || ""}
+                onChange={(e) => setMutualFundTotal(e.target.value ? parseFloat(e.target.value) : null)}
+                placeholder="Total MF value"
+                step="0.01"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="car_value_total" className={labelClass}>Car Value Total</label>
+              <input
+                type="number"
+                id="car_value_total"
+                value={carValueTotal || ""}
+                onChange={(e) => setCarValueTotal(e.target.value ? parseFloat(e.target.value) : null)}
+                placeholder="Total car value"
+                step="0.01"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="emi_total" className={labelClass}>EMI Total</label>
+              <input
+                type="number"
+                id="emi_total"
+                value={emiTotal || ""}
+                onChange={(e) => setEmiTotal(e.target.value ? parseFloat(e.target.value) : null)}
+                placeholder="Total monthly EMI"
+                step="0.01"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="real_estate_total_price" className={labelClass}>Real Estate Total Price</label>
+              <input
+                type="number"
+                id="real_estate_total_price"
+                value={realEstateTotalPrice || ""}
+                onChange={(e) => setRealEstateTotalPrice(e.target.value ? parseFloat(e.target.value) : null)}
+                placeholder="Total property value"
+                step="0.01"
+                className={inputClass}
+              />
+            </div>
+          </div>
+        </CollapsibleSection>
+
+        {/* Optional Detailed Breakdown */}
+        <CollapsibleSection title="Detailed Breakdown" icon={<Layers className="w-5 h-5" />}>
+          <div className="space-y-6">
+            {/* Stocks */}
+            <CategoryRow
+              items={stocks}
+              {...createCategoryHandlers(stocks, setStocks)}
+              namePlaceholder="Stock Name"
+              valuePlaceholder="Portfolio Value"
+              title="Stocks"
+            />
+
+            {/* Mutual Funds */}
+            <CategoryRow
+              items={mutualFunds}
+              {...createCategoryHandlers(mutualFunds, setMutualFunds)}
+              namePlaceholder="Fund Name"
+              valuePlaceholder="Amount Invested"
+              title="Mutual Funds"
+            />
+
+            {/* Cars */}
+            <CategoryRow
+              items={cars}
+              {...createCategoryHandlers(cars, setCars)}
+              namePlaceholder="Car Model"
+              valuePlaceholder="Market Value"
+              title="Cars"
+            />
+
+            {/* EMIs */}
+            <CategoryRow
+              items={emis}
+              {...createCategoryHandlers(emis, setEmis)}
+              namePlaceholder="EMI Name"
+              valuePlaceholder="Monthly Amount"
+              title="EMIs"
+            />
+
+            {/* Real Estate */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-800">Real Estate</h3>
+                <button
+                  type="button"
+                  onClick={addRealEstate}
+                  className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-sm"
+                >
+                  + Add Property
+                </button>
+              </div>
+              <div className="space-y-3">
+                {realEstate.length === 0 ? (
+                  <p className="text-sm text-gray-500 italic">No properties added yet</p>
+                ) : (
+                  realEstate.map((property, index) => (
+                    <div key={index} className="flex gap-3 items-end">
+                      <div className="flex-1">
+                        <label className={labelClass}>Location</label>
+                        <input
+                          type="text"
+                          placeholder="Property location"
+                          value={property.location}
+                          onChange={(e) => updateRealEstate(index, "location", e.target.value)}
+                          className={inputClass}
+                        />
+                      </div>
+                      <div className="w-40">
+                        <label className={labelClass}>Price</label>
+                        <input
+                          type="number"
+                          placeholder="Property value"
+                          value={property.price || ""}
+                          onChange={(e) => updateRealEstate(index, "price", parseFloat(e.target.value) || 0)}
+                          step="0.01"
+                          className={inputClass}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeRealEstate(index)}
+                        className="px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors mb-0.5"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </CollapsibleSection>
+
+        {/* Additional Custom Metrics */}
+        <CollapsibleSection title="Custom Metrics" icon={<BarChart className="w-5 h-5" />}>
+          <div className="space-y-3">
+            {dynamicFields.map((field, index) => (
+              <div key={index} className="flex gap-3 items-center">
+                <input
+                  type="text"
+                  placeholder="Metric name (e.g., debt, insurance)"
+                  value={field.key}
+                  onChange={(e) => updateField(index, "key", e.target.value)}
+                  className={`flex-1 ${inputClass}`}
+                />
+                <input
+                  type="number"
+                  placeholder="Value"
+                  value={field.value || ""}
+                  onChange={(e) => updateField(index, "value", parseFloat(e.target.value) || 0)}
+                  step="0.01"
+                  className={`w-32 ${inputClass}`}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeField(index)}
+                  disabled={dynamicFields.length === 1}
+                  className="px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={addField}
+              className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-sm w-full md:w-auto"
+            >
+              Add Field
+            </button>
+          </div>
+        </CollapsibleSection>
+
+        {/* Message */}
+        {message && (
+          <div
+            className={`p-4 rounded-md ${
+              message.type === "success"
+                ? "bg-green-100 text-green-800 border border-green-300"
+                : "bg-red-100 text-red-800 border border-red-300"
+            }`}
+          >
+            {message.text}
+          </div>
+        )}
+
+        {/* Submit Button */}
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="w-full md:w-auto px-6 py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-semibold"
         >
-          {message.text}
-        </div>
-      )}
-
-      {/* Submit Button */}
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="w-full px-6 py-3 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-semibold"
-      >
-        {isSubmitting ? "Submitting..." : "Submit Data"}
-      </button>
-    </form>
+          {isSubmitting ? "Submitting..." : "Submit Data"}
+        </button>
+      </form>
+    </div>
   );
 }

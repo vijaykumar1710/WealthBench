@@ -12,6 +12,16 @@ const config: Config = {
         background: "var(--background)",
         foreground: "var(--foreground)",
       },
+      borderRadius: {
+        'wb': 'var(--wb-radius)',
+      },
+      spacing: {
+        'wb': 'var(--wb-padding)',
+        'section': 'var(--wb-section-spacing)',
+      },
+      boxShadow: {
+        'wb': 'var(--wb-shadow)',
+      },
     },
   },
   plugins: [],

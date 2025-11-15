@@ -26,8 +26,8 @@ export default function CategoryRow({
   const labelClass = "block text-sm font-medium text-gray-600 mb-1";
 
   return (
-    <div className="rounded-xl border p-4 shadow-sm bg-white">
-      <div className="flex items-center justify-between mb-4">
+    <div className="wb-card space-y-4">
+      <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
         <button
           type="button"

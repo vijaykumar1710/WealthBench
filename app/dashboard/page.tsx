@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PieChart, Wallet, TrendingUp } from "lucide-react";
 import MetricCard from "@/components/MetricCard";
 
 interface MetricStats {
@@ -41,7 +42,7 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <main className="min-h-screen p-6 bg-white">
+      <main className="min-h-screen p-4 md:p-6 bg-white">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-4xl font-bold mb-8">WealthBench Dashboard</h1>
           <div className="flex items-center justify-center py-20">
@@ -54,10 +55,10 @@ export default function Dashboard() {
 
   if (error) {
     return (
-      <main className="min-h-screen p-6 bg-white">
+      <main className="min-h-screen p-4 md:p-6 bg-white">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-4xl font-bold mb-8">WealthBench Dashboard</h1>
-          <div className="rounded-xl border p-4 shadow-sm bg-white">
+          <div className="wb-card">
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
               {error}
             </div>
@@ -103,15 +104,15 @@ export default function Dashboard() {
   );
 
   return (
-    <main className="min-h-screen p-6 bg-white">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <main className="min-h-screen p-4 md:p-6 bg-white">
+      <div className="max-w-7xl mx-auto space-y-section">
         <div>
           <h1 className="text-4xl font-bold mb-2">WealthBench Dashboard</h1>
           <p className="text-gray-600">Aggregated financial benchmarks from anonymous submissions</p>
         </div>
 
         {metricKeys.length === 0 ? (
-          <div className="rounded-xl border p-4 shadow-sm bg-white text-center">
+          <div className="wb-card text-center">
             <p className="text-gray-600 text-lg">
               No statistics available yet. Be the first to submit data!
             </p>
@@ -121,7 +122,10 @@ export default function Dashboard() {
             {/* Required Metrics */}
             {required.length > 0 && (
               <div>
-                <h2 className="text-2xl font-semibold mb-4 text-gray-800">Required Metrics</h2>
+                <h2 className="wb-section-title">
+                  <PieChart className="w-5 h-5" />
+                  Required Metrics
+                </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                   {required.map((key) => {
                     const metric = metrics[key];
@@ -144,22 +148,27 @@ export default function Dashboard() {
             {/* Aggregate Optional Assets */}
             {aggregates.length > 0 && (
               <div>
-                <h2 className="text-2xl font-semibold mb-4 text-gray-800">Aggregate Optional Assets</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {aggregates.map((key) => {
-                    const metric = metrics[key];
-                    return (
-                      <MetricCard
-                        key={key}
-                        title={key}
-                        sample_size={metric.sample_size}
-                        avg={metric.avg}
-                        p25={metric.p25}
-                        median={metric.median}
-                        p75={metric.p75}
-                      />
-                    );
-                  })}
+                <h2 className="wb-section-title">
+                  <Wallet className="w-5 h-5" />
+                  Aggregate Optional Assets
+                </h2>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {aggregates.map((key) => {
+                      const metric = metrics[key];
+                      return (
+                        <MetricCard
+                          key={key}
+                          title={key}
+                          sample_size={metric.sample_size}
+                          avg={metric.avg}
+                          p25={metric.p25}
+                          median={metric.median}
+                          p75={metric.p75}
+                        />
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}
@@ -167,22 +176,27 @@ export default function Dashboard() {
             {/* Derived Metrics */}
             {derived.length > 0 && (
               <div>
-                <h2 className="text-2xl font-semibold mb-4 text-gray-800">Derived Metrics</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {derived.map((key) => {
-                    const metric = metrics[key];
-                    return (
-                      <MetricCard
-                        key={key}
-                        title={key}
-                        sample_size={metric.sample_size}
-                        avg={metric.avg}
-                        p25={metric.p25}
-                        median={metric.median}
-                        p75={metric.p75}
-                      />
-                    );
-                  })}
+                <h2 className="wb-section-title">
+                  <TrendingUp className="w-5 h-5" />
+                  Derived Metrics
+                </h2>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {derived.map((key) => {
+                      const metric = metrics[key];
+                      return (
+                        <MetricCard
+                          key={key}
+                          title={key}
+                          sample_size={metric.sample_size}
+                          avg={metric.avg}
+                          p25={metric.p25}
+                          median={metric.median}
+                          p75={metric.p75}
+                        />
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}
@@ -190,22 +204,24 @@ export default function Dashboard() {
             {/* Other Metrics */}
             {other.length > 0 && (
               <div>
-                <h2 className="text-2xl font-semibold mb-4 text-gray-800">Other Metrics</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {other.map((key) => {
-                    const metric = metrics[key];
-                    return (
-                      <MetricCard
-                        key={key}
-                        title={key}
-                        sample_size={metric.sample_size}
-                        avg={metric.avg}
-                        p25={metric.p25}
-                        median={metric.median}
-                        p75={metric.p75}
-                      />
-                    );
-                  })}
+                <h2 className="wb-section-title">Other Metrics</h2>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {other.map((key) => {
+                      const metric = metrics[key];
+                      return (
+                        <MetricCard
+                          key={key}
+                          title={key}
+                          sample_size={metric.sample_size}
+                          avg={metric.avg}
+                          p25={metric.p25}
+                          median={metric.median}
+                          p75={metric.p75}
+                        />
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}
