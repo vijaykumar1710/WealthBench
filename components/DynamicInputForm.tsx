@@ -150,10 +150,28 @@ export default function DynamicInputForm() {
       const json = await res.json();
 
       if (json.success) {
-        router.push(`/result?submission_id=${json.data.id}`);
+        const { submission_id, metrics } = json.data;
+
+        if (!submission_id) {
+          setMessage({ type: "error", text: "Submission was created, but no ID was returned." });
+          setIsSubmitting(false);
+          return;
+        }
+
+        const params = new URLSearchParams({ submission_id });
+
+        // Add all metrics so Result page can calculate rankings
+        Object.entries(metrics).forEach(([key, value]) => {
+          if (value !== null && value !== undefined) {
+            params.append(key, String(value));
+          }
+        });
+
+        router.push(`/result?${params.toString()}`);
       } else {
         setMessage({ type: "error", text: json.error });
       }
+
     } catch (err) {
       setMessage({ type: "error", text: "Network error. Try again." });
     }
@@ -372,11 +390,10 @@ export default function DynamicInputForm() {
         {/* ERROR / SUCCESS */}
         {message && (
           <div
-            className={`p-4 rounded-md ${
-              message.type === "success"
+            className={`p-4 rounded-md ${message.type === "success"
                 ? "bg-green-100 text-green-800 border border-green-300"
                 : "bg-red-100 text-red-800 border border-red-300"
-            }`}
+              }`}
           >
             {message.text}
           </div>

@@ -1,4 +1,3 @@
-// app/api/stats/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { logger } from "@/lib/logger";

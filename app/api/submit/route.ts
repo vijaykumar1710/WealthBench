@@ -27,28 +27,20 @@ const ratelimit = isRedisConfigured
 // ------------------------------------------
 async function invalidateRedisCaches() {
   try {
-    // Delete all metric snapshots
     const metricKeys = CACHE_KEYS.METRIC_LIST.map((m) =>
       CACHE_KEYS.metricSnapshotKey(m)
     );
 
-    if (metricKeys.length > 0) {
-      await redis.del(...metricKeys);
-    }
+    if (metricKeys.length > 0) await redis.del(...metricKeys);
 
-    // Delete all dashboard caches using prefix scan
     const dashboardPrefix = CACHE_KEYS.dashboardPrefix();
-
     const scan = await redis.scan(0, {
       match: `${dashboardPrefix}*`,
       count: 1000,
     });
 
     const dashboardKeys = scan[1];
-
-    if (dashboardKeys.length > 0) {
-      await redis.del(...dashboardKeys);
-    }
+    if (dashboardKeys.length > 0) await redis.del(...dashboardKeys);
 
     logger.info("Redis caches invalidated successfully", {
       metric_count: metricKeys.length,
@@ -184,17 +176,37 @@ export async function POST(request: NextRequest) {
     // ------------------------------------------
     invalidateRedisCaches(); // fire & forget (fast)
 
-    const response: SubmissionResponse = {
-      id: submission.id,
-      created_at: submission.created_at,
-      net_worth: submission.net_worth ?? 0,
-    };
-
     logger.info("Submission created successfully", {
       submissionId: submission.id,
     });
 
-    return NextResponse.json({ success: true, data: response });
+    // ------------------------------------------
+    // RETURN FULL METRICS FOR REDIRECT
+    // ------------------------------------------
+    const metricsForResultPage = {
+      income: financials.income_yearly ?? 0,
+      expenses: financials.monthly_expenses ?? 0,
+      savings: financials.savings_total ?? 0,
+      net_worth,
+      stock_value_total: financials.stock_value_total ?? 0,
+      mutual_fund_total: financials.mutual_fund_total ?? 0,
+      real_estate_total_price: financials.real_estate_total_price ?? 0,
+      gold_value_estimate: financials.gold_value_estimate ?? 0,
+      investment_value:
+        (financials.savings_total ?? 0) +
+        (financials.stock_value_total ?? 0) +
+        (financials.mutual_fund_total ?? 0) +
+        (financials.real_estate_total_price ?? 0) +
+        (financials.gold_value_estimate ?? 0),
+    };
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        submission_id: submission.id,
+        metrics: metricsForResultPage,
+      },
+    });
   } catch (error) {
     logger.error("Error in submit endpoint", {
       error: error instanceof Error ? error.message : "Unknown error",

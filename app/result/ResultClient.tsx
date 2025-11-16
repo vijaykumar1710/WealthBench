@@ -86,7 +86,7 @@ export default function ResultClient() {
       }
 
       try {
-        const res = await fetch("/api/stats/batch", {
+        const res = await fetch("/api/newStats/batch", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

@@ -7,7 +7,6 @@ import {
   Wallet,
   TrendingUp,
   Filter,
-  Users,
   AlertTriangle,
   ArrowUpRight,
   ArrowDownRight,
@@ -121,7 +120,7 @@ async function fetchDashboard(filters: Filters) {
   const query = buildDashboardQuery(filters);
   const revalidate = resolveRevalidateSeconds();
 
-  const res = await fetch(`${base}/api/stats?${query.toString()}`, {
+  const res = await fetch(`${base}/api/newStats?${query.toString()}`, {
     next: { revalidate },
   });
 
@@ -206,8 +205,12 @@ function ComparisonBlock({ label, value }: { label: string; value: number }) {
 }
 
 function LeaderboardTable({ rows, type }: { rows: LeaderboardEntry[]; type: "currency" | "percentage" }) {
+  const safe = Array.isArray(rows) ? rows : [];
   const fmt = type === "currency" ? formatCurrency : formatPercent;
-  if (!rows.length) return <p className="p-4 text-sm text-gray-500">Not enough data</p>;
+
+  if (safe.length === 0) {
+    return <p className="p-4 text-sm text-gray-500">Not enough data</p>;
+  }
   return (
     <div className="border rounded-xl overflow-hidden">
       <table className="min-w-full text-sm">

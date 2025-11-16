@@ -1,4 +1,3 @@
-// lib/statsCore.ts
 import { redis } from "@/lib/redis";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { logger } from "@/lib/logger";
