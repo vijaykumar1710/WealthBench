@@ -1,3 +1,5 @@
+"use server";
+
 import { headers } from "next/headers";
 import Link from "next/link";
 import {
@@ -6,41 +8,43 @@ import {
   TrendingUp,
   Filter,
   Users,
-  Activity,
   AlertTriangle,
   ArrowUpRight,
   ArrowDownRight,
+  Activity,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+
+//
+// ──────────────────────────────────────────────────────────────
+// TYPES
+// ──────────────────────────────────────────────────────────────
+//
 
 type LeaderboardEntry = {
   label: string;
   avg: number;
   median: number;
   sample_size: number;
-  total?: number;
 };
 
 type DashboardPayload = {
   generated_at: string;
   ttl_seconds: number;
-  cohort_summary?: {
+
+  cohort_summary: {
     sample_size: number;
     median_income: number;
     median_savings_rate: number;
     median_expense_rate: number;
   };
-  cohort_comparison?: {
-    income: number;
-    savings_rate: number;
-    expense_rate: number;
-  };
+
   leaderboards: {
     income_by_occupation: LeaderboardEntry[];
     income_by_age: LeaderboardEntry[];
     savings_rate_by_income: LeaderboardEntry[];
     expense_rate_by_income: LeaderboardEntry[];
   };
+
   averages: {
     monthly_emi: {
       average: number;
@@ -48,179 +52,180 @@ type DashboardPayload = {
       sample_size: number;
     };
   };
+
   facets: {
     occupations: string[];
     cities: string[];
-    regions: string[];
-    income_brackets: string[];
     age_ranges: string[];
+    yoe_buckets?: string[]; // optional
   };
 };
 
 type Filters = {
-  occupation?: string;
-  income_bracket?: string;
-  region?: string;
   city?: string;
-  age_range?: string;
+  occupation?: string;
+  age?: string;
+  yoe?: string;
 };
 
-const MIN_REVALIDATE = 60;
-const DEFAULT_REVALIDATE = 3600;
+//
+// ──────────────────────────────────────────────────────────────
+// UTILITIES
+// ──────────────────────────────────────────────────────────────
+//
 
-const leaderboardSections: {
-  key: keyof DashboardPayload["leaderboards"];
-  title: string;
-  description: string;
-  icon: LucideIcon;
-  valueType: "currency" | "percentage";
-}[] = [
-  {
-    key: "income_by_occupation",
-    title: "Top Income by Occupation",
-    description: "See which professions currently command the highest annual income in our dataset.",
-    icon: Wallet,
-    valueType: "currency",
-  },
-  {
-    key: "income_by_age",
-    title: "Income by Age Bucket",
-    description: "Compare median income across age brackets to understand career momentum.",
-    icon: PieChart,
-    valueType: "currency",
-  },
-  {
-    key: "savings_rate_by_income",
-    title: "Savings % by Income",
-    description: "Average savings-rate for each income slab (annual).",
-    icon: TrendingUp,
-    valueType: "percentage",
-  },
-  {
-    key: "expense_rate_by_income",
-    title: "Expense % by Income",
-    description: "How much of their income people spend across slabs.",
-    icon: Filter,
-    valueType: "percentage",
-  },
-];
-
-const filterFields: { key: keyof Filters; label: string; placeholder: string }[] = [
-  { key: "occupation", label: "Occupation", placeholder: "All occupations" },
-  { key: "income_bracket", label: "Income Bracket", placeholder: "All brackets" },
-  { key: "region", label: "Region", placeholder: "All regions" },
-  { key: "city", label: "City", placeholder: "All cities" },
-  { key: "age_range", label: "Age Range", placeholder: "All ages" },
-];
-
-function formatCurrency(value: number): string {
-  if (!Number.isFinite(value)) return "₹0";
-  if (value >= 10_000_000) return `₹${(value / 10_000_000).toFixed(1)} Cr`;
-  if (value >= 100_000) return `₹${(value / 100_000).toFixed(1)} L`;
-  if (value >= 1_000) return `₹${(value / 1_000).toFixed(1)} K`;
-  return `₹${value.toFixed(0)}`;
+function getSingle(v: string | string[] | undefined): string | undefined {
+  if (!v) return undefined;
+  return Array.isArray(v) ? v[0] : v;
 }
 
-function formatPercentage(value: number): string {
-  if (!Number.isFinite(value)) return "0%";
-  return `${value.toFixed(1)}%`;
-}
-
-function getSingleValue(value: string | string[] | undefined): string | undefined {
-  if (!value) return undefined;
-  if (Array.isArray(value)) return value[0];
-  return value;
-}
-
-function normalizeFilters(searchParams: Record<string, string | string[] | undefined>): Filters {
+function normalizeFilters(raw: Record<string, string | string[] | undefined>): Filters {
   return {
-    occupation: getSingleValue(searchParams.occupation),
-    income_bracket: getSingleValue(searchParams.income_bracket),
-    region: getSingleValue(searchParams.region),
-    city: getSingleValue(searchParams.city),
-    age_range: getSingleValue(searchParams.age_range),
+    city: getSingle(raw.city),
+    occupation: getSingle(raw.occupation),
+    age: getSingle(raw.age),
+    yoe: getSingle(raw.yoe),
   };
 }
 
-function buildDashboardQuery(filters: Filters): URLSearchParams {
-  const params = new URLSearchParams();
-  params.set("view", "dashboard");
-
-  if (filters.occupation) params.append("occupation[]", filters.occupation);
-  if (filters.income_bracket) params.append("income_bracket[]", filters.income_bracket);
-  if (filters.region) params.append("region[]", filters.region);
-  if (filters.city) params.append("city[]", filters.city);
-  if (filters.age_range) params.append("age_range[]", filters.age_range);
-
-  return params;
+function buildDashboardQuery(filters: Filters) {
+  const p = new URLSearchParams();
+  p.set("view", "dashboard");
+  if (filters.city) p.append("city[]", filters.city);
+  if (filters.occupation) p.append("occupation[]", filters.occupation);
+  if (filters.age) p.append("age[]", filters.age);
+  if (filters.yoe) p.append("yoe[]", filters.yoe);
+  return p;
 }
+
+const MIN_REVALIDATE = 60;
+const DEFAULT_REVALIDATE = 24 * 60 * 60; // default 24 hours per your requirement
 
 function resolveRevalidateSeconds(): number {
-  const envValue = Number(process.env.NEXT_PUBLIC_DASHBOARD_CACHE_TTL ?? process.env.DASHBOARD_CACHE_TTL_SECONDS ?? DEFAULT_REVALIDATE);
-  if (!Number.isFinite(envValue) || envValue <= 0) {
-    return DEFAULT_REVALIDATE;
-  }
-  return Math.max(MIN_REVALIDATE, envValue);
+  const envVal =
+    Number(process.env.NEXT_PUBLIC_DASHBOARD_CACHE_TTL ?? "") ||
+    Number(process.env.DASHBOARD_CACHE_TTL_SECONDS ?? "") ||
+    DEFAULT_REVALIDATE;
+
+  if (!Number.isFinite(envVal) || envVal <= 0) return DEFAULT_REVALIDATE;
+  return Math.max(MIN_REVALIDATE, envVal);
 }
 
-async function fetchDashboardData(filters: Filters) {
-  const headersList = await headers();
-  const host = headersList.get("host");
-  if (!host) {
-    throw new Error("Unable to resolve host for dashboard fetch");
-  }
-  const protocol = headersList.get("x-forwarded-proto") ?? "http";
-  const baseUrl = `${protocol}://${host}`;
+async function fetchDashboard(filters: Filters) {
+  // headers() returns a RequestHeaders object (promise resolved here)
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? "https";
+  const base = `${proto}://${host}`;
+
   const query = buildDashboardQuery(filters);
   const revalidate = resolveRevalidateSeconds();
 
-  const response = await fetch(`${baseUrl}/api/stats?${query.toString()}`, {
+  const res = await fetch(`${base}/api/stats?${query.toString()}`, {
     next: { revalidate },
   });
 
-  if (!response.ok) {
-    throw new Error(`Dashboard request failed (${response.status})`);
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Dashboard request failed (${res.status}) ${text ? `: ${text}` : ""}`);
   }
 
-  const payload = await response.json();
-  if (!payload?.success || !payload?.data) {
-    throw new Error(payload?.error || "Unexpected dashboard response");
+  const json = await res.json();
+  if (!json || !json.success || !json.data) {
+    throw new Error(json?.error ?? "Invalid dashboard response");
   }
 
-  return { data: payload.data as DashboardPayload, revalidate };
+  return { data: json.data as DashboardPayload, revalidate };
 }
 
-function LeaderboardTable({
-  entries,
-  valueType,
+//
+// ──────────────────────────────────────────────────────────────
+// FORMATTERS & UI PARTS
+// ──────────────────────────────────────────────────────────────
+//
+
+function formatCurrency(v: number) {
+  if (!Number.isFinite(v)) return "₹0";
+  if (v >= 1_00_00_000) return `₹${(v / 1_00_00_000).toFixed(1)} Cr`;
+  if (v >= 1_00_000) return `₹${(v / 1_00_000).toFixed(1)} L`;
+  if (v >= 1_000) return `₹${(v / 1_000).toFixed(1)} K`;
+  return `₹${v.toFixed(0)}`;
+}
+
+function formatPercent(v: number) {
+  if (!Number.isFinite(v)) return "0%";
+  return `${v.toFixed(1)}%`;
+}
+
+function SummaryCard({
+  label,
+  value,
+  helper,
+  type,
 }: {
-  entries: LeaderboardEntry[];
-  valueType: "currency" | "percentage";
+  label: string;
+  value: number;
+  helper?: string;
+  type: "currency" | "percentage";
 }) {
-  if (!entries?.length) {
-    return <p className="text-sm text-gray-500">Not enough submissions for this view yet.</p>;
-  }
-
-  const formatValue = valueType === "percentage" ? formatPercentage : formatCurrency;
-
+  const fmt = type === "currency" ? formatCurrency : formatPercent;
   return (
-    <div className="overflow-hidden border border-gray-100 rounded-xl">
-      <table className="min-w-full divide-y divide-gray-100">
-        <thead className="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500">
+    <div className="p-4 rounded-xl border bg-white shadow-sm">
+      <p className="text-xs font-semibold uppercase text-gray-500">{label}</p>
+      <p className="text-3xl font-bold mt-1">{fmt(value)}</p>
+      {helper && <p className="text-xs text-gray-500 mt-1">{helper}</p>}
+    </div>
+  );
+}
+
+function SmallCohortNotice({ size }: { size: number }) {
+  if (size >= 30) return null;
+  return (
+    <div className="p-3 rounded-lg border bg-amber-50 text-amber-800 flex items-center gap-2">
+      <AlertTriangle className="w-4 h-4" />
+      Small cohort ({size}). Insights may change as more data arrives.
+    </div>
+  );
+}
+
+function ComparisonBlock({ label, value }: { label: string; value: number }) {
+  const Icon = value === 0 ? Activity : value > 0 ? ArrowUpRight : ArrowDownRight;
+  const color = value === 0 ? "text-gray-600" : value > 0 ? "text-emerald-600" : "text-red-600";
+  return (
+    <div className="p-3 border rounded-lg flex justify-between items-center">
+      <div>
+        <p className="text-xs uppercase font-semibold text-gray-500">{label}</p>
+        <p className={`text-sm font-semibold ${color}`}>{value === 0 ? "On par" : `${value > 0 ? "+" : ""}${value.toFixed(1)}% vs all`}</p>
+      </div>
+      <span className={`text-xs px-2 py-1 rounded-full ${value === 0 ? "bg-gray-100 text-gray-700" : value > 0 ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
+        <Icon className="h-3.5 w-3.5 inline mr-1" />
+        {value.toFixed(1)}%
+      </span>
+    </div>
+  );
+}
+
+function LeaderboardTable({ rows, type }: { rows: LeaderboardEntry[]; type: "currency" | "percentage" }) {
+  const fmt = type === "currency" ? formatCurrency : formatPercent;
+  if (!rows.length) return <p className="p-4 text-sm text-gray-500">Not enough data</p>;
+  return (
+    <div className="border rounded-xl overflow-hidden">
+      <table className="min-w-full text-sm">
+        <thead className="bg-gray-50 text-xs uppercase text-gray-500">
           <tr>
-            <th scope="col" className="px-4 py-3 text-left">Cohort</th>
-            <th scope="col" className="px-4 py-3 text-left">Average</th>
-            <th scope="col" className="px-4 py-3 text-left">Median</th>
-            <th scope="col" className="px-4 py-3 text-left">Sample</th>
+            <th className="px-4 py-2 text-left">Cohort</th>
+            <th className="px-4 py-2 text-left">Average</th>
+            <th className="px-4 py-2 text-left">Median</th>
+            <th className="px-4 py-2 text-left">Sample</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100 bg-white text-sm">
-          {entries.map((entry) => (
-            <tr key={entry.label}>
-              <td className="px-4 py-3 font-medium text-gray-900">{entry.label}</td>
-              <td className="px-4 py-3 text-gray-700">{formatValue(entry.avg)}</td>
-              <td className="px-4 py-3 text-gray-700">{formatValue(entry.median)}</td>
-              <td className="px-4 py-3 text-gray-500">{entry.sample_size}</td>
+        <tbody className="bg-white divide-y">
+          {rows.map((r) => (
+            <tr key={r.label}>
+              <td className="px-4 py-2">{r.label}</td>
+              <td className="px-4 py-2">{fmt(r.avg)}</td>
+              <td className="px-4 py-2">{fmt(r.median)}</td>
+              <td className="px-4 py-2 text-gray-500">{r.sample_size}</td>
             </tr>
           ))}
         </tbody>
@@ -229,257 +234,131 @@ function LeaderboardTable({
   );
 }
 
-function FiltersForm({ facets, currentFilters }: { facets: DashboardPayload["facets"]; currentFilters: Filters }) {
-  const hasFacets = Object.values(facets).some((values) => values?.length);
-
-  if (!hasFacets) {
-    return null;
-  }
-
-  const optionsMap: Record<keyof Filters, string[]> = {
-    occupation: facets.occupations,
-    income_bracket: facets.income_brackets,
-    region: facets.regions,
-    city: facets.cities,
-    age_range: facets.age_ranges,
-  };
-
-  return (
-    <form className="wb-card space-y-4" method="get">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-semibold text-gray-700">Filters</p>
-          <p className="text-xs text-gray-500">Slice the dashboard by occupation, bracket, or geography.</p>
-        </div>
-        <Link href="/dashboard" className="text-xs text-blue-600 hover:underline">
-          Reset
-        </Link>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {filterFields.map(({ key, label, placeholder }) => {
-          const options = optionsMap[key] || [];
-          const value = currentFilters[key] ?? "";
-          return (
-            <label key={key} className="text-xs font-medium text-gray-600 space-y-1">
-              {label}
-              <select
-                name={key}
-                defaultValue={value}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white"
-              >
-                <option value="">{placeholder}</option>
-                {options.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </label>
-          );
-        })}
-      </div>
-      <button
-        type="submit"
-        className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-      >
-        Apply Filters
-      </button>
-    </form>
-  );
-}
-
-function SummaryStatCard({
-  label,
-  value,
-  helper,
-  valueType,
-}: {
-  label: string;
-  value: number;
-  helper?: string;
-  valueType: "currency" | "percentage";
-}) {
-  const formatter = valueType === "currency" ? formatCurrency : formatPercentage;
-  return (
-    <div className="wb-card">
-      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</p>
-      <p className="mt-2 text-3xl font-bold text-gray-900">{formatter(value)}</p>
-      {helper && <p className="mt-1 text-xs text-gray-500">{helper}</p>}
-    </div>
-  );
-}
-
-function SampleSizeNotice({ sampleSize }: { sampleSize: number }) {
-  if (sampleSize >= 30) return null;
-  return (
-    <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-      <AlertTriangle className="h-4 w-4" />
-      <span>
-        Small cohort ({sampleSize} submissions). Insights may shift as more people share their data.
-      </span>
-    </div>
-  );
-}
-
-function ComparisonIndicator({ label, value }: { label: string; value: number }) {
-  const isPositive = value > 0;
-  const isNeutral = value === 0;
-  const Icon = isNeutral ? Activity : isPositive ? ArrowUpRight : ArrowDownRight;
-  const colorClass = isNeutral ? "text-gray-600" : isPositive ? "text-emerald-600" : "text-red-600";
-  const badgeBg = isNeutral ? "bg-gray-100 text-gray-700" : isPositive ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700";
-
-  return (
-    <div className="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2">
-      <div>
-        <p className="text-xs uppercase tracking-wide text-gray-500">{label}</p>
-        <p className={`text-sm font-semibold ${colorClass}`}>
-          {isNeutral ? "On par" : `${isPositive ? "+" : ""}${value.toFixed(1)}% vs All`}
-        </p>
-      </div>
-      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${badgeBg}`}>
-        <Icon className="h-3.5 w-3.5" />
-        {isNeutral ? "0%" : `${value.toFixed(1)}%`}
-      </span>
-    </div>
-  );
-}
-
-function CohortComparisonCard({ comparison }: { comparison: DashboardPayload["cohort_comparison"] }) {
-  if (!comparison) return null;
-  return (
-    <div className="wb-card space-y-3">
-      <div className="flex items-center gap-2">
-        <Users className="h-4 w-4 text-blue-600" />
-        <p className="text-sm font-semibold text-gray-800">Compared to all submissions</p>
-      </div>
-      <div className="grid gap-3 md:grid-cols-3">
-        <ComparisonIndicator label="Income" value={comparison.income} />
-        <ComparisonIndicator label="Savings Rate" value={comparison.savings_rate} />
-        <ComparisonIndicator label="Expense Rate" value={comparison.expense_rate} />
-      </div>
-    </div>
-  );
-}
-
-function MonthlyEmiCard({ data }: { data: DashboardPayload["averages"]["monthly_emi"] }) {
-  return (
-    <div className="wb-card">
-      <p className="text-sm font-semibold text-gray-700">Average Monthly EMI</p>
-      <p className="text-3xl font-bold text-blue-700 mt-2">{formatCurrency(data.average)}</p>
-      <p className="text-sm text-gray-500 mt-1">Median • {formatCurrency(data.median)}</p>
-      <p className="text-xs text-gray-400 mt-2">Based on {data.sample_size} submissions</p>
-    </div>
-  );
-}
+//
+// ──────────────────────────────────────────────────────────────
+// PAGE (Server Component) — SAFE unwrap of searchParams
+// ──────────────────────────────────────────────────────────────
+//
 
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+  // Next may pass a plain object or a Promise — handle both safely
+  searchParams?: Record<string, string | string[] | undefined> | Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const params = (await searchParams) ?? {};
-  const filters = normalizeFilters(params);
+  // unwrap searchParams if it's a Promise (some Next internals may pass a Promise)
+  let rawParams: Record<string, string | string[] | undefined> = {};
+  try {
+    if (!searchParams) {
+      rawParams = {};
+    } else if (typeof (searchParams as any).then === "function") {
+      rawParams = await (searchParams as Promise<Record<string, string | string[] | undefined>>);
+    } else {
+      rawParams = searchParams as Record<string, string | string[] | undefined>;
+    }
+  } catch (e) {
+    // fallback to empty
+    rawParams = {};
+  }
+
+  const filters = normalizeFilters(rawParams);
 
   let data: DashboardPayload | null = null;
   let error: string | null = null;
   let revalidateSeconds = resolveRevalidateSeconds();
 
   try {
-    const response = await fetchDashboardData(filters);
-    data = response.data;
-    revalidateSeconds = response.revalidate;
-  } catch (err) {
-    error = err instanceof Error ? err.message : "Failed to load dashboard";
+    const res = await fetchDashboard(filters);
+    data = res.data;
+    revalidateSeconds = res.revalidate;
+  } catch (e) {
+    error = e instanceof Error ? e.message : "Failed to load dashboard data";
   }
 
   return (
-    <main className="min-h-screen bg-white p-4 md:p-6">
-      <div className="mx-auto flex max-w-7xl flex-col gap-8">
-        <header className="space-y-2">
-          <h1 className="text-4xl font-bold">WealthBench Dashboard</h1>
-          <p className="text-gray-600">Hourly refreshed benchmarks from anonymous submissions.</p>
-          {data && (
-            <p className="text-xs text-gray-400">
-              Data refreshed at {new Date(data.generated_at).toLocaleString()} • cache ttl {revalidateSeconds}s
-            </p>
-          )}
-        </header>
+    <main className="max-w-6xl mx-auto p-6 space-y-8">
+      <header>
+        <h1 className="text-4xl font-bold">WealthBench Dashboard</h1>
+        <p className="text-gray-600">Benchmarks from anonymous submissions (cached).</p>
+        {data && <p className="text-xs text-gray-400 mt-1">Updated: {new Date(data.generated_at).toLocaleString()} — cache TTL {revalidateSeconds}s</p>}
+      </header>
 
-        {error && (
-          <div className="wb-card border border-red-200 bg-red-50 text-red-700">
-            <p className="font-semibold">{error}</p>
-            <p className="text-sm">Please try again in a bit — data refreshes automatically once new submissions arrive.</p>
-          </div>
-        )}
+      {error && (
+        <div className="p-4 rounded-lg border bg-red-50 text-red-700">
+          <p className="font-semibold">Error</p>
+          <p className="text-sm">{error}</p>
+        </div>
+      )}
 
-        {data && (
-          <>
-            <FiltersForm facets={data.facets} currentFilters={filters} />
+      {!error && !data && (
+        <div className="p-4 rounded-lg border bg-white text-gray-600">No submissions yet. Be the first to share!</div>
+      )}
 
-            {data.cohort_summary && (
-              <section className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-3">
-                  <SummaryStatCard
-                    label="Median Income"
-                    value={data.cohort_summary.median_income}
-                    valueType="currency"
-                    helper={`Sample size • ${data.cohort_summary.sample_size}`}
-                  />
-                  <SummaryStatCard
-                    label="Median Savings Rate"
-                    value={data.cohort_summary.median_savings_rate}
-                    valueType="percentage"
-                    helper="Percentage of income saved"
-                  />
-                  <SummaryStatCard
-                    label="Median Expense Rate"
-                    value={data.cohort_summary.median_expense_rate}
-                    valueType="percentage"
-                    helper="Annual spending vs income"
-                  />
-                </div>
-                <div className="flex flex-col gap-4 md:flex-row">
-                  <SampleSizeNotice sampleSize={data.cohort_summary.sample_size} />
-                  {data.cohort_comparison && <CohortComparisonCard comparison={data.cohort_comparison} />}
-                </div>
-              </section>
-            )}
+      {data && (
+        <>
+          {/* FILTERS */}
+          <form method="get" className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <select name="city" defaultValue={filters.city ?? ""} className="border p-2 rounded-lg">
+              <option value="">All Cities</option>
+              {data.facets.cities.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
 
-            <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <MonthlyEmiCard data={data.averages.monthly_emi} />
-              <div className="wb-card">
-                <p className="text-sm font-semibold text-gray-700">How to read this dashboard</p>
-                <ul className="mt-3 list-disc space-y-1 pl-4 text-sm text-gray-600">
-                  <li>All figures are anonymized and aggregated.</li>
-                  <li>Pick a filter to compare yourself with similar peers.</li>
-                  <li>Leaderboards show averages & medians for each cohort.</li>
-                </ul>
-                <p className="mt-3 text-xs text-gray-400">
-                  Need deeper cuts? Apply multiple filters and reload — the data is cached hourly after each new submission.
-                </p>
-              </div>
-            </section>
+            <select name="occupation" defaultValue={filters.occupation ?? ""} className="border p-2 rounded-lg">
+              <option value="">All Occupations</option>
+              {data.facets.occupations.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
 
-            <section className="space-y-8">
-              {leaderboardSections.map(({ key, title, description, icon: Icon, valueType }) => (
-                <div key={key} className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Icon className="h-5 w-5 text-blue-600" />
-                    <div>
-                      <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
-                      <p className="text-sm text-gray-500">{description}</p>
-                    </div>
-                  </div>
-                  <LeaderboardTable entries={data?.leaderboards[key] ?? []} valueType={valueType} />
-                </div>
-              ))}
-            </section>
-          </>
-        )}
+            <select name="age" defaultValue={filters.age ?? ""} className="border p-2 rounded-lg">
+              <option value="">All Ages</option>
+              {data.facets.age_ranges.map((a) => <option key={a} value={a}>{a}</option>)}
+            </select>
 
-        {!data && !error && (
-          <div className="wb-card text-center text-gray-600">No submissions yet. Be the first to share!</div>
-        )}
+            <select name="yoe" defaultValue={filters.yoe ?? ""} className="border p-2 rounded-lg">
+              <option value="">All Experience</option>
+              {data.facets.yoe_buckets?.map?.((y) => <option key={y} value={y}>{y}</option>) ?? null}
+            </select>
+
+            <button className="col-span-full bg-blue-600 text-white px-4 py-2 rounded-lg">Apply</button>
+          </form>
+
+          {/* SUMMARY */}
+          <section className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <SummaryCard label="Median Income" value={data.cohort_summary.median_income} helper={`Sample • ${data.cohort_summary.sample_size}`} type="currency" />
+              <SummaryCard label="Median Savings Rate" value={data.cohort_summary.median_savings_rate} type="percentage" />
+              <SummaryCard label="Median Expense Rate" value={data.cohort_summary.median_expense_rate} type="percentage" />
+            </div>
+
+            <SmallCohortNotice size={data.cohort_summary.sample_size} />
+          </section>
+
+          {/* LEADERBOARDS */}
+          <section className="space-y-8">
+            <div>
+              <h2 className="text-xl font-semibold flex items-center gap-2"><Wallet className="w-5 h-5 text-blue-600" /> Income by Occupation</h2>
+              <LeaderboardTable rows={data.leaderboards.income_by_occupation} type="currency" />
+            </div>
+
+            <div>
+              <h2 className="text-xl font-semibold flex items-center gap-2"><PieChart className="w-5 h-5 text-blue-600" /> Income by Age</h2>
+              <LeaderboardTable rows={data.leaderboards.income_by_age} type="currency" />
+            </div>
+
+            <div>
+              <h2 className="text-xl font-semibold flex items-center gap-2"><TrendingUp className="w-5 h-5 text-blue-600" /> Savings Rate by Income</h2>
+              <LeaderboardTable rows={data.leaderboards.savings_rate_by_income} type="percentage" />
+            </div>
+
+            <div>
+              <h2 className="text-xl font-semibold flex items-center gap-2"><Filter className="w-5 h-5 text-blue-600" /> Expense Rate by Income</h2>
+              <LeaderboardTable rows={data.leaderboards.expense_rate_by_income} type="percentage" />
+            </div>
+          </section>
+        </>
+      )}
+
+      <div className="flex gap-3 pt-6">
+        <Link href="/" className="px-4 py-2 rounded-lg bg-gray-100">Home</Link>
       </div>
     </main>
   );
