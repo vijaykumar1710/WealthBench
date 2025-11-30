@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseServer } from "@/lib/supabaseServer";
 import { logger } from "@/lib/logger";
-import { SubmissionPayload, SubmissionResponse } from "@/types/submission";
+import { SubmissionPayload } from "@/types/submission";
 import { validateSubmission } from "@/lib/validation";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { redis } from "@/lib/redis";
-import { CACHE_KEYS } from "@/lib/cacheKeys";
+import { allowedMetrics } from "@/lib/stats/metrics";
+import { revalidatePath } from "next/cache";
+import { CACHE_KEYS } from "@/lib/stats/cacheKeys";
 
 // ------------------------------------------
 // RATE LIMITING
@@ -27,27 +29,71 @@ const ratelimit = isRedisConfigured
 // ------------------------------------------
 async function invalidateRedisCaches() {
   try {
-    const metricKeys = CACHE_KEYS.METRIC_LIST.map((m) =>
+    // 1) Metric snapshot keys
+    const metricKeys = allowedMetrics.map((m: string) =>
       CACHE_KEYS.metricSnapshotKey(m)
     );
 
-    if (metricKeys.length > 0) await redis.del(...metricKeys);
+    if (metricKeys.length > 0) {
+      try {
+        await redis.del(...metricKeys);
+      } catch (err) {
+        // if deleting many keys at once fails for any reason, delete individually
+        logger.warn("Bulk redis.del failed for metricKeys, attempting per-key", { err });
+        for (const k of metricKeys) {
+          try {
+            await redis.del(k);
+          } catch (e) {
+            logger.warn("redis.del metric key failed", { key: k, e });
+          }
+        }
+      }
+    }
 
-    const dashboardPrefix = CACHE_KEYS.dashboardPrefix();
-    const scan = await redis.scan(0, {
-      match: `${dashboardPrefix}*`,
-      count: 1000,
-    });
+    // 2) Submissions snapshot key
+    const submissionsKey = CACHE_KEYS.SUBMISSIONS_SNAPSHOT;
+    try {
+      await redis.del(submissionsKey);
+    } catch (err) {
+      logger.warn("redis.del submissions snapshot failed", { key: submissionsKey, err });
+    }
 
-    const dashboardKeys = scan[1];
-    if (dashboardKeys.length > 0) await redis.del(...dashboardKeys);
+    // 3) dashboard:* keys using scan loop (Upstash returns cursor as string)
+    const dashboardPrefix = CACHE_KEYS.DASHBOARD_PREFIX;
+    const deletedDashboardKeys: string[] = [];
+    let cursor = "0";
+    do {
+      // scan returns [cursor:string, keys:string[]]
+      const res = await redis.scan(cursor, { match: `${dashboardPrefix}*`, count: 1000 });
+      cursor = res[0];
+      const keys = res[1] ?? [];
+      if (keys.length > 0) {
+        try {
+          await redis.del(...keys);
+          deletedDashboardKeys.push(...keys);
+        } catch (err) {
+          logger.warn("redis.del dashboard keys batch failed, deleting individually", { keysLength: keys.length, err });
+          for (const k of keys) {
+            try {
+              await redis.del(k);
+              deletedDashboardKeys.push(k);
+            } catch (e) {
+              logger.warn("redis.del single dashboard key failed", { key: k, e });
+            }
+          }
+        }
+      }
+    } while (cursor !== "0");
 
     logger.info("Redis caches invalidated successfully", {
       metric_count: metricKeys.length,
-      dashboard_count: dashboardKeys.length,
+      dashboard_count: deletedDashboardKeys.length,
     });
+
+    return { metric_count: metricKeys.length, dashboard_count: deletedDashboardKeys.length };
   } catch (err) {
     logger.warn("Redis invalidation failed", { err });
+    return { metric_count: 0, dashboard_count: 0, error: String(err) };
   }
 }
 
@@ -174,7 +220,21 @@ export async function POST(request: NextRequest) {
     // ------------------------------------------
     // REDIS: invalidate caches after successful INSERT
     // ------------------------------------------
-    invalidateRedisCaches(); // fire & forget (fast)
+    // Fire-and-forget background invalidation + revalidate path
+    void (async () => {
+      try {
+        const result = await invalidateRedisCaches();
+        try {
+          // revalidate the dashboard page so it picks up the new cached API payload
+          revalidatePath("/dashboard");
+          logger.info("revalidatePath('/dashboard') called", { result });
+        } catch (e) {
+          logger.warn("revalidatePath failed", { e });
+        }
+      } catch (e) {
+        logger.warn("background cache invalidation failed", { e });
+      }
+    })();
 
     logger.info("Submission created successfully", {
       submissionId: submission.id,
