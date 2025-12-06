@@ -1,4 +1,5 @@
 import DynamicInputForm from "@/components/DynamicInputForm";
+import ShareButton from "@/components/ui/ShareButton";
 import { ArrowRight, ShieldCheck, Users, TrendingUp } from "lucide-react";
 import { headers } from "next/headers";
 
@@ -78,6 +79,12 @@ export default async function Home() {
           >
             View Dashboard
           </a>
+
+          <ShareButton
+            title="WealthBench - India's Anonymous Wealth Benchmark"
+            text="Compare your income, expenses & savings with thousands of verified professionals. No login. No email. No tracking."
+            variant="outline"
+          />
         </div>
 
         {/* Trust Badges */}

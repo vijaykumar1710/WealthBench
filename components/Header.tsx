@@ -10,7 +10,7 @@ export default function Header() {
           </Link>
           <div className="flex gap-4 md:gap-6">
             <Link
-              href="/"
+              href="/#form"
               className="text-gray-700 hover:text-blue-600 transition-colors font-medium text-sm md:text-base"
             >
               Submit Data

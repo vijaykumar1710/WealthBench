@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import PercentileBar from "@/components/PercentileBar";
 import RankBadge from "@/components/RankBadge";
+import ShareButton from "@/components/ui/ShareButton";
 
 type RankingEntry = {
   value: number;
@@ -217,6 +218,12 @@ export default function ResultClient() {
           >
             View Dashboard
           </Link>
+
+          <ShareButton
+            title="My WealthBench Results"
+            text={`I just checked my financial ranking on WealthBench! My income is in the ${rankings.income?.percentile?.toFixed(1) || 'N/A'}th percentile. See how you compare!`}
+            variant="outline"
+          />
         </div>
       </div>
     </main>

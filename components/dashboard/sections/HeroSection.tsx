@@ -1,4 +1,5 @@
 import type { DashboardPayload } from "@/types/dashboard";
+import ShareButton from "@/components/ui/ShareButton";
 import FiltersClient from "../client/FiltersClient";
 
 // Helper function to convert rate to percentage for display
@@ -22,10 +23,20 @@ export default function HeroSection({ data }: { data: DashboardPayload }) {
       
       <div className="flex flex-col lg:flex-row justify-between gap-8">
         <div className="flex-1">
-          <h1 className="text-4xl font-bold tracking-tight text-gray-900">WealthBench Dashboard</h1>
-          <p className="text-gray-600 mt-3 text-lg">
-            Compare your finances with <span className="font-semibold text-blue-600">{data.sample_size.toLocaleString()}</span> Indians
-          </p>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-4xl font-bold tracking-tight text-gray-900">WealthBench Dashboard</h1>
+              <p className="text-gray-600 mt-3 text-lg">
+                Compare your finances with <span className="font-semibold text-blue-600">{data.sample_size.toLocaleString()}</span> Indians
+              </p>
+            </div>
+            <ShareButton
+              title="WealthBench Dashboard - Real Financial Insights"
+              text={`Explore real financial insights from ${data.sample_size.toLocaleString()} Indian professionals. Compare income, savings, and investment patterns.`}
+              url="/dashboard"
+              className="flex-shrink-0"
+            />
+          </div>
           
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-6">
             <div className="bg-white p-4 rounded-xl border border-gray-200">
